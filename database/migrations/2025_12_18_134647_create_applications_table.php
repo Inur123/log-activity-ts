@@ -13,7 +13,14 @@ return new class extends Migration
     {
         Schema::create('applications', function (Blueprint $table) {
             $table->id();
+            $table->string('name', 100);
+            $table->string('slug', 100)->unique();
+            $table->string('api_key', 64)->unique();
+            $table->string('domain', 255)->nullable();
+            $table->enum('stack', ['laravel', 'codeigniter', 'django', 'other'])->default('other');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
+            $table->index(['is_active', 'slug']);
         });
     }
 
