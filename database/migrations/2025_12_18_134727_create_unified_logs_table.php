@@ -14,8 +14,6 @@ return new class extends Migration
         Schema::create('unified_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('application_id')->constrained()->onDelete('cascade');
-
-            // Log Type
             $table->enum('log_type', [
                 'activity',      // login, logout, access
                 'audit_trail',   // create, update, delete data
@@ -23,8 +21,6 @@ return new class extends Migration
                 'system',        // email, wa, cron
                 'custom'         // custom log
             ]);
-
-            // Payload FLEXIBLE (semua data masuk sini)
             $table->json('payload');
 
             // Hash Chain untuk tamper-proof

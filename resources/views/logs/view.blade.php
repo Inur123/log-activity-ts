@@ -22,6 +22,6 @@
 </head>
 <body>
     <h1>Selamat Datang</h1>
-    <p>Halaman ini hanya untuk tampilan web biasa.</p>
+    <p>Halaman ini hanya untuk tampilan web log.</p>
 </body>
 </html>

@@ -9,12 +9,8 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::prefix('v1')->group(function () {
-
-    // POST untuk API (pakai api.key)
     Route::middleware(['api.key', 'throttle:1000,1'])->group(function () {
         Route::post('/logs', [LogController::class, 'store']);
     });
-
-    // GET untuk browser (tanpa api.key)
     Route::get('/logs', [LogController::class, 'logsView']);
 });
