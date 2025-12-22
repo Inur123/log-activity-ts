@@ -3,31 +3,49 @@
 namespace App\Services;
 
 use App\Models\UnifiedLog;
-use Illuminate\Support\Facades\DB;
 
 class HashChainService
 {
+    private function ksortRecursive(array &$array): void
+    {
+        ksort($array);
+        foreach ($array as &$value) {
+            if (is_array($value)) {
+                $this->ksortRecursive($value);
+            }
+        }
+    }
+
     public function generateHash(array $data, ?string $previousHash = null): string
     {
-        // Sort untuk konsistensi
-        ksort($data);
+        $this->ksortRecursive($data);
 
-        // Gabung dengan previous hash
-        $payload = json_encode($data) . ($previousHash ?? '');
+        $payload = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+            . ($previousHash ?? '');
 
-        // Generate SHA256
         return hash('sha256', $payload);
     }
 
-    public function getPreviousHash(): ?string
+    public function getPreviousHash(?int $applicationId = null): ?string
     {
-        $lastLog = UnifiedLog::latest('id')->first(['hash']);
-        return $lastLog?->hash;
+        $q = UnifiedLog::query()->latest('id');
+
+        if ($applicationId) {
+            $q->where('application_id', $applicationId);
+        }
+
+        return $q->value('hash');
     }
 
-    public function verifyChain(): array
+    public function verifyChain(?int $applicationId = null): array
     {
-        $logs = UnifiedLog::orderBy('id')->get(['id', 'hash', 'prev_hash', 'created_at']);
+        $q = UnifiedLog::query()->orderBy('id');
+
+        if ($applicationId) {
+            $q->where('application_id', $applicationId);
+        }
+
+        $logs = $q->get(['id','application_id','log_type','payload','hash','prev_hash','created_at']);
 
         if ($logs->isEmpty()) {
             return ['valid' => true, 'message' => 'No logs to verify'];
@@ -35,17 +53,38 @@ class HashChainService
 
         $errors = [];
 
-        foreach ($logs as $index => $log) {
-            if ($index === 0) continue;
+        foreach ($logs as $i => $log) {
+            $expectedPrev = $i === 0 ? null : $logs[$i - 1]->hash;
 
-            $prevLog = $logs[$index - 1];
-
-            if ($log->prev_hash !== $prevLog->hash) {
+            // 1) cek prev_hash
+            if ($log->prev_hash !== $expectedPrev) {
                 $errors[] = [
                     'log_id' => $log->id,
-                    'expected' => $prevLog->hash,
+                    'type' => 'prev_hash_mismatch',
+                    'expected' => $expectedPrev,
                     'found' => $log->prev_hash,
-                    'timestamp' => $log->created_at
+                ];
+                // lanjut cek hash juga tetap boleh, tapi biasanya chain udah rusak
+            }
+
+            // 2) cek hash beneran (recompute)
+            $dataForHash = [
+                'application_id' => $log->application_id,
+                'log_type'       => $log->log_type,
+                'payload'        => $log->payload,
+                'ip_address'     => $log->ip_address ?? null,
+                'user_agent'     => $log->user_agent ?? null,
+                'created_at'     => optional($log->created_at)->toISOString(),
+            ];
+
+            $recomputed = $this->generateHash($dataForHash, $log->prev_hash);
+
+            if (!hash_equals($log->hash, $recomputed)) {
+                $errors[] = [
+                    'log_id' => $log->id,
+                    'type' => 'hash_mismatch',
+                    'expected' => $recomputed,
+                    'found' => $log->hash,
                 ];
             }
         }
@@ -54,7 +93,7 @@ class HashChainService
             'valid' => empty($errors),
             'message' => empty($errors) ? 'Hash chain valid' : 'Hash chain broken',
             'errors' => $errors,
-            'total_checked' => $logs->count()
+            'total_checked' => $logs->count(),
         ];
     }
 }

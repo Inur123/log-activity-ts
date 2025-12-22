@@ -1,16 +1,37 @@
 <?php
 
-use App\Models\UnifiedLog;
-use App\Models\Application;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\LogController;
-use App\Http\Controllers\DashboardController;
 
-// Welcome page
-Route::get('/', function () {
-    return view('welcome');
+use App\Livewire\Auth\Login;
+use App\Livewire\Auth\Logout;
+
+use App\Livewire\SuperAdmin\Dashboard as SuperAdminDashboard;
+use App\Livewire\SuperAdmin\LogViewer as SuperAdminLogViewer;
+
+
+use App\Livewire\Auditor\Dashboard as AuditorDashboard;
+
+
+Route::middleware('guest')->group(function () {
+    Route::get('/', Login::class)->name('login');
 });
 
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->name('dashboard');
+Route::middleware('auth')->group(function () {
+    Route::get('/logout', Logout::class)->name('logout');
+});
+
+Route::middleware(['auth', 'role:super_admin'])
+    ->prefix('super-admin')
+    ->name('super_admin.')
+    ->group(function () {
+    Route::get('/dashboard', SuperAdminDashboard::class)->name('dashboard');
+    Route::get('/logs', SuperAdminLogViewer::class)->name('logs');
+
+
+    });
+Route::middleware(['auth', 'role:auditor'])
+    ->prefix('auditor')
+    ->name('auditor.')
+    ->group(function () {
+    Route::get('/dashboard', AuditorDashboard::class)->name('dashboard');
+    });

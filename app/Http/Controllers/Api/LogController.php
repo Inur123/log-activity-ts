@@ -11,15 +11,19 @@ use App\Jobs\ProcessUnifiedLog;
 
 class LogController extends Controller
 {
-    /**
-     * SATU ENDPOINT UNTUK SEMUA LOG
-     * POST /api/v1/logs
-     */
     public function store(Request $request)
     {
-        Log::info('API KEY:', [$request->header('X-API-Key')]);
-        // Rate Limiting: 1000 requests per minute per API Key
-        $key = 'api:' . $request->input('application')->id;
+        $application = $request->input('application');
+
+        if (!$application) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid application context'
+            ], 401);
+        }
+
+        // Rate limit per application_id
+        $key = 'api:' . $application->id;
 
         if (RateLimiter::tooManyAttempts($key, 1000)) {
             return response()->json([
@@ -28,13 +32,11 @@ class LogController extends Controller
                 'retry_after' => RateLimiter::availableIn($key)
             ], 429);
         }
-
         RateLimiter::hit($key, 60);
 
-        // Validasi MINIMAL
         $validator = Validator::make($request->all(), [
-            'log_type' => 'required|in:activity,audit_trail,security,system,custom',
-            'payload' => 'required|array',
+            'log_type' => 'required|string|max:100',
+            'payload'  => 'required|array',
         ]);
 
         if ($validator->fails()) {
@@ -46,52 +48,44 @@ class LogController extends Controller
         }
 
         try {
-            $application = $request->input('application');
-
-            // Data untuk queue
             $logData = [
                 'application_id' => $application->id,
-                'log_type' => $request->log_type,
-                'payload' => $request->payload,
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
+                'log_type'       => $request->log_type,
+                'payload'        => $request->payload,
+                'ip_address'     => $request->ip(),
+                'user_agent'     => $request->userAgent(),
             ];
 
-            // MASUKKAN KE QUEUE (Async - TIDAK blocking)
             ProcessUnifiedLog::dispatch($logData)->onQueue('logs');
 
-            Log::info('Log queued', [
-                'app' => $application->name,
-                'type' => $request->log_type
-            ]);
-
-            // Response CEPAT! (202 Accepted = processing async)
             return response()->json([
                 'success' => true,
                 'message' => 'Log received and queued for processing',
                 'queued_at' => now()->toDateTimeString()
             ], 202);
+
         } catch (\Exception $e) {
             Log::error('Failed to queue log', [
                 'error' => $e->getMessage(),
-                'payload' => $request->all()
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to process log request',
-                'error_debug' => $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * Verify API Key (Optional - untuk testing)
-     * POST /api/v1/auth/verify
-     */
     public function verify(Request $request)
     {
         $application = $request->input('application');
+
+        if (!$application) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid application context'
+            ], 401);
+        }
 
         return response()->json([
             'success' => true,
@@ -103,10 +97,5 @@ class LogController extends Controller
                 'stack' => $application->stack
             ]
         ]);
-    }
-    public function logsView()
-    {
-
-        return view('logs.view');
     }
 }

@@ -7,49 +7,40 @@
 @section('content')
 
 @php
-    $applications = $applications ?? \App\Models\Application::orderBy('name')->get();
+    $applications   = $applications ?? [];
+    $logTypeOptions = $logTypeOptions ?? [];
 
-    $typeMeta = [
-        'activity' => [
-            'label' => 'Activity',
-            'icon'  => 'fa-user',
-            'badge' => 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
-            'dot'   => 'bg-blue-500',
-        ],
-        'audit_trail' => [
-            'label' => 'Audit Trail',
-            'icon'  => 'fa-clock-rotate-left',
-            'badge' => 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
-            'dot'   => 'bg-emerald-500',
-        ],
-        'authentication' => [
-            'label' => 'Authentication',
-            'icon'  => 'fa-right-to-bracket',
-            'badge' => 'bg-rose-50 text-rose-700 ring-1 ring-rose-200',
-            'dot'   => 'bg-rose-500',
-        ],
-        'system' => [
-            'label' => 'System',
-            'icon'  => 'fa-gear',
-            'badge' => 'bg-violet-50 text-violet-700 ring-1 ring-violet-200',
-            'dot'   => 'bg-violet-500',
-        ],
-        'custom' => [
-            'label' => 'Custom',
-            'icon'  => 'fa-puzzle-piece',
-            'badge' => 'bg-amber-50 text-amber-800 ring-1 ring-amber-200',
-            'dot'   => 'bg-amber-500',
-        ],
-    ];
+    /**
+     * ✅ LABEL harus murni dari log_type yang masuk
+     * - badge/icon/warna boleh auto generate (bukan label hardcode)
+     * - label = Str::headline($type)
+     */
 
-    $normalizeType = function (?string $type) {
-        if ($type === 'security') return 'authentication';
-        return $type ?: 'custom';
-    };
+    $autoMeta = function (?string $type) {
+        $type = $type ?: 'custom';
 
-    $getMeta = function ($type) use ($typeMeta, $normalizeType) {
-        $t = $normalizeType($type);
-        return $typeMeta[$t] ?? $typeMeta['custom'];
+        $palettes = [
+            ['badge' => 'bg-slate-50 text-slate-700 ring-1 ring-slate-200',     'dot' => 'bg-slate-500',   'icon' => 'fa-tag'],
+            ['badge' => 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',       'dot' => 'bg-blue-500',    'icon' => 'fa-tag'],
+            ['badge' => 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200','dot' => 'bg-emerald-500','icon' => 'fa-tag'],
+            ['badge' => 'bg-rose-50 text-rose-700 ring-1 ring-rose-200',       'dot' => 'bg-rose-500',    'icon' => 'fa-tag'],
+            ['badge' => 'bg-violet-50 text-violet-700 ring-1 ring-violet-200', 'dot' => 'bg-violet-500',  'icon' => 'fa-tag'],
+            ['badge' => 'bg-amber-50 text-amber-800 ring-1 ring-amber-200',    'dot' => 'bg-amber-500',   'icon' => 'fa-tag'],
+            ['badge' => 'bg-cyan-50 text-cyan-700 ring-1 ring-cyan-200',       'dot' => 'bg-cyan-500',    'icon' => 'fa-tag'],
+            ['badge' => 'bg-fuchsia-50 text-fuchsia-700 ring-1 ring-fuchsia-200','dot' => 'bg-fuchsia-500','icon' => 'fa-tag'],
+            ['badge' => 'bg-lime-50 text-lime-800 ring-1 ring-lime-200',       'dot' => 'bg-lime-500',    'icon' => 'fa-tag'],
+            ['badge' => 'bg-orange-50 text-orange-800 ring-1 ring-orange-200', 'dot' => 'bg-orange-500',  'icon' => 'fa-tag'],
+        ];
+
+        $idx = abs(crc32($type)) % count($palettes);
+        $p = $palettes[$idx];
+
+        return [
+            'label' => \Illuminate\Support\Str::headline($type), // ✅ murni dari log_type
+            'icon'  => $p['icon'],
+            'badge' => $p['badge'],
+            'dot'   => $p['dot'],
+        ];
     };
 
     $pick = function (array $payload, array $paths, $default = null) {
@@ -68,7 +59,6 @@
                 </span>';
     };
 
-    // ====== NEW: Convert semua JSON => readable key/value ======
     $isSensitiveKey = function (string $key) {
         $key = strtolower($key);
         $blocked = [
@@ -94,10 +84,8 @@
         return \Illuminate\Support\Str::limit((string) $v, $limit);
     };
 
-    // Flatten recursive: key.path => value
     $flatten = function ($data, string $prefix = '') use (&$flatten) {
         $out = [];
-
         if (!is_array($data)) return $out;
 
         foreach ($data as $k => $v) {
@@ -105,18 +93,12 @@
             $key = $prefix === '' ? $k : $prefix.'.'.$k;
 
             if (is_array($v)) {
-                if ($v === []) {
-                    $out[$key] = [];
-                } else {
-                    foreach ($flatten($v, $key) as $kk => $vv) {
-                        $out[$kk] = $vv;
-                    }
-                }
+                if ($v === []) $out[$key] = [];
+                else foreach ($flatten($v, $key) as $kk => $vv) $out[$kk] = $vv;
             } else {
                 $out[$key] = $v;
             }
         }
-
         return $out;
     };
 
@@ -140,7 +122,7 @@
 
 <div class="mx-auto max-w-7xl space-y-6">
 
-    {{-- HEADER (responsive) --}}
+    {{-- HEADER --}}
     <div class="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4 sm:p-6">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -155,32 +137,7 @@
         </div>
     </div>
 
-    {{-- STATS (responsive text) --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="rounded-xl bg-blue-50 ring-1 ring-blue-100 p-4">
-            <div class="text-sm font-semibold text-blue-700">Total Logs</div>
-            <div class="mt-1 text-2xl sm:text-3xl font-bold text-blue-900">{{ \App\Models\UnifiedLog::count() }}</div>
-        </div>
-
-        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-4">
-            <div class="text-sm font-semibold text-emerald-700">Applications</div>
-            <div class="mt-1 text-2xl sm:text-3xl font-bold text-emerald-900">{{ \App\Models\Application::count() }}</div>
-        </div>
-
-        <div class="rounded-xl bg-violet-50 ring-1 ring-violet-100 p-4">
-            <div class="text-sm font-semibold text-violet-700">Today</div>
-            <div class="mt-1 text-2xl sm:text-3xl font-bold text-violet-900">{{ \App\Models\UnifiedLog::whereDate('created_at', today())->count() }}</div>
-        </div>
-
-        <div class="rounded-xl bg-rose-50 ring-1 ring-rose-100 p-4">
-            <div class="text-sm font-semibold text-rose-700">Auth Logs</div>
-            <div class="mt-1 text-2xl sm:text-3xl font-bold text-rose-900">
-                {{ \App\Models\UnifiedLog::whereIn('log_type', ['authentication','security'])->count() }}
-            </div>
-        </div>
-    </div>
-
-    {{-- FILTER (grid responsive) --}}
+    {{-- FILTER --}}
     <div class="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
         <form method="GET" action="{{ request()->url() }}" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
 
@@ -203,15 +160,17 @@
                 </select>
             </div>
 
+            {{-- ✅ TYPE: label dari log_type (bukan map/controller) --}}
             <div>
                 <label class="text-xs font-semibold text-slate-600">Type</label>
                 <select name="log_type" class="w-full rounded-lg border px-3 py-2 text-sm">
                     <option value="">All Types</option>
-                    <option value="activity" {{ request('log_type') == 'activity' ? 'selected' : '' }}>Activity</option>
-                    <option value="audit_trail" {{ request('log_type') == 'audit_trail' ? 'selected' : '' }}>Audit Trail</option>
-                    <option value="authentication" {{ in_array(request('log_type'), ['authentication','security']) ? 'selected' : '' }}>Authentication</option>
-                    <option value="system" {{ request('log_type') == 'system' ? 'selected' : '' }}>System</option>
-                    <option value="custom" {{ request('log_type') == 'custom' ? 'selected' : '' }}>Custom</option>
+
+                    @foreach($logTypeOptions as $t)
+                        <option value="{{ $t }}" {{ request('log_type') == $t ? 'selected' : '' }}>
+                            {{ \Illuminate\Support\Str::headline($t) }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
 
@@ -284,8 +243,7 @@
                 <tbody class="divide-y">
                     @forelse($logs as $log)
                         @php
-                            $displayType = $normalizeType($log->log_type);
-                            $meta = $getMeta($log->log_type);
+                            $meta = $autoMeta($log->log_type);
 
                             $payload = is_array($log->payload)
                                 ? $log->payload
@@ -306,7 +264,6 @@
 
                             $pretty = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?? '{}';
 
-                            // ✅ ALL FIELDS flatten + sort
                             $flat = $flatten($payload);
                             ksort($flat);
 
@@ -324,6 +281,7 @@
                                 <div class="text-xs text-slate-500">{{ optional($log->application)->stack ?? '-' }}</div>
                             </td>
 
+                            {{-- ✅ label badge murni dari log_type --}}
                             <td class="px-4 sm:px-6 py-4 align-top">
                                 <div class="flex items-center gap-2">
                                     <span class="h-2.5 w-2.5 rounded-full {{ $meta['dot'] }}"></span>
@@ -332,7 +290,7 @@
                                         {{ $meta['label'] }}
                                     </span>
                                 </div>
-                                <div class="mt-1 text-[11px] text-slate-500 font-mono">type: {{ $displayType }}</div>
+                                <div class="mt-1 text-[11px] text-slate-500 font-mono">type: {{ $log->log_type }}</div>
                             </td>
 
                             <td class="px-4 sm:px-6 py-4 align-top">
@@ -364,7 +322,6 @@
                                         </div>
                                     </div>
 
-                                    {{-- chips lama tetap --}}
                                     <div class="flex flex-wrap gap-2">
                                         @if($actor) {!! $chip('fa-user', $actor) !!} @endif
                                         @if($ip) {!! $chip('fa-network-wired', $ip) !!} @endif
@@ -376,7 +333,6 @@
                                         <span class="sm:hidden">{!! $chip('fa-calendar-day', $log->created_at->format('Y-m-d H:i')) !!}</span>
                                     </div>
 
-                                    {{-- ✅ NEW: All Fields Readable (SEMUA KEY) - desain masih selaras --}}
                                     <details class="group">
                                         <summary class="cursor-pointer select-none rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 flex items-center justify-between">
                                             <span class="inline-flex items-center gap-2">
@@ -395,9 +351,7 @@
 
                                                 @foreach($flat as $k => $v)
                                                     @php
-                                                        if ($isSensitiveKey($k)) {
-                                                            $v = '••••••';
-                                                        }
+                                                        if ($isSensitiveKey($k)) $v = '••••••';
                                                         $row = $kvRow($k, $v);
                                                     @endphp
                                                     @if($row)
@@ -413,7 +367,6 @@
                                         </div>
                                     </details>
 
-                                    {{-- Raw JSON tetap --}}
                                     <details class="group">
                                         <summary class="cursor-pointer select-none rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 flex items-center justify-between">
                                             <span class="inline-flex items-center gap-2">

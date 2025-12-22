@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Carbon\Carbon;
 
 class UnifiedLog extends Model
 {
-    const UPDATED_AT = null; // Immutable log
+    const UPDATED_AT = null; // immutable
 
     protected $fillable = [
         'application_id',
@@ -16,35 +17,30 @@ class UnifiedLog extends Model
         'hash',
         'prev_hash',
         'ip_address',
-        'user_agent'
+        'user_agent',
     ];
 
     protected $casts = [
-        'payload' => 'array',
-        'created_at' => 'datetime'
+        'payload'     => 'array',
+        'created_at'  => 'datetime',
     ];
 
-    // PREVENT UPDATE & DELETE
-    public function save(array $options = [])
+    protected static function booted()
     {
-        if ($this->exists) {
+        static::updating(function () {
             throw new \Exception('Cannot update immutable log');
-        }
-        return parent::save($options);
+        });
+
+        static::deleting(function () {
+            throw new \Exception('Cannot delete immutable log');
+        });
     }
 
-    public function delete()
-    {
-        throw new \Exception('Cannot delete immutable log');
-    }
-
-    // RELATIONSHIPS
     public function application(): BelongsTo
     {
         return $this->belongsTo(Application::class);
     }
 
-    // SCOPES
     public function scopeByApplication($query, $appId)
     {
         return $query->where('application_id', $appId);
@@ -57,17 +53,28 @@ class UnifiedLog extends Model
 
     public function scopeDateRange($query, $start, $end)
     {
-        return $query->whereBetween('created_at', [$start, $end]);
+        return $query
+            ->when($start, fn($q) => $q->where('created_at', '>=', Carbon::parse($start)->startOfDay()))
+            ->when($end,   fn($q) => $q->where('created_at', '<=', Carbon::parse($end)->endOfDay()));
     }
 
+    // MySQL-friendly search JSON
     public function scopeSearchInPayload($query, $search)
     {
-        return $query->where('payload', 'like', '%' . $search . '%');
+        $search = trim((string) $search);
+        if ($search === '') return $query;
+
+        return $query->whereRaw("CAST(payload AS CHAR) LIKE ?", ["%{$search}%"]);
     }
 
-    // HELPER: Get value from payload
     public function getPayloadValue($key, $default = null)
     {
         return data_get($this->payload, $key, $default);
     }
+    public function getRouteKeyName(): string
+{
+    return 'id';
+}
+
+
 }
