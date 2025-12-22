@@ -7,6 +7,7 @@ use App\Livewire\Auth\Logout;
 
 use App\Livewire\SuperAdmin\Dashboard as SuperAdminDashboard;
 use App\Livewire\SuperAdmin\LogViewer as SuperAdminLogViewer;
+use App\Livewire\SuperAdmin\Application as SuperAdminApplication;
 
 
 use App\Livewire\Auditor\Dashboard as AuditorDashboard;
@@ -26,8 +27,7 @@ Route::middleware(['auth', 'role:super_admin'])
     ->group(function () {
     Route::get('/dashboard', SuperAdminDashboard::class)->name('dashboard');
     Route::get('/logs', SuperAdminLogViewer::class)->name('logs');
-
-
+    Route::get('/applications', SuperAdminApplication::class)->name('applications');
     });
 Route::middleware(['auth', 'role:auditor'])
     ->prefix('auditor')

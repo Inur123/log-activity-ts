@@ -2,7 +2,7 @@
     <div class="flex items-start justify-between gap-3">
         <div>
             <div class="text-xs text-slate-500">Super Admin • Log Viewer</div>
-            <h1 class="text-2xl font-bold text-slate-900">Log Detail #{{ $log->id }}</h1>
+            <h1 class="text-xs font-bold text-slate-900">Log Detail #{{ $log->id }}</h1>
             <p class="text-sm text-slate-600">
                 {{ $log->application->name ?? '-' }} •
                 <span class="font-semibold">{{ $log->log_type }}</span> •

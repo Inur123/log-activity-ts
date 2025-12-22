@@ -9,13 +9,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('unified_logs', function (Blueprint $table) {
-            // ✅ UUID as primary key
             $table->uuid('id')->primary();
 
-            $table->foreignId('application_id')->constrained()->onDelete('cascade');
+            $table->foreignUuid('application_id')
+                ->constrained('applications')
+                ->cascadeOnDelete();
 
             $table->string('log_type', 100)->index();
-
             $table->json('payload');
             $table->string('hash', 64)->index();
             $table->string('prev_hash', 64)->nullable();

@@ -52,6 +52,19 @@
             <i class="fa-solid fa-database"></i>
             Log Viewer
         </a>
+        <a
+    href="{{ route('super_admin.applications') }}"
+    wire:navigate
+    class="flex items-center gap-3 px-3 py-2 rounded-xl
+    {{ request()->routeIs('super_admin.applications')
+        ? 'bg-slate-900 text-white'
+        : 'hover:bg-slate-100 text-slate-700' }}"
+    x-on:click="sidebarOpen=false"
+>
+    <i class="fa-solid fa-cubes"></i>
+    Applications
+</a>
+
     </nav>
 
     {{-- LOGOUT (LIVEWIRE) --}}

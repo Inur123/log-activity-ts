@@ -1,0 +1,232 @@
+{{-- resources/views/livewire/super-admin/application/index.blade.php --}}
+<div class="space-y-4">
+
+    {{-- Title --}}
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Applications</h1>
+            <p class="text-slate-600 text-sm">Kelola aplikasi & API Key (token).</p>
+        </div>
+
+        <button type="button"
+            wire:click="create"
+            class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+            <i class="fa-solid fa-plus"></i> Tambah
+        </button>
+    </div>
+
+    @if (session('success'))
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 text-sm">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    {{-- Filters --}}
+    <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6" x-data="{ open: false }">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <div class="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                    <i class="fa-solid fa-filter"></i>
+                </div>
+                <div>
+                    <div class="font-semibold text-slate-900 leading-tight">Filters</div>
+                    <div class="text-xs text-slate-500">Cari aplikasi dengan cepat</div>
+                </div>
+            </div>
+
+            <button type="button"
+                class="sm:hidden inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700"
+                x-on:click="open = !open">
+                <i class="fa-solid" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                <span x-text="open ? 'Tutup' : 'Buka'"></span>
+            </button>
+        </div>
+
+        <div class="mt-4" :class="open ? 'block' : 'hidden sm:block'">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+
+                <div class="lg:col-span-6">
+                    <label class="text-xs font-semibold text-slate-600">Search</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" wire:model.live.debounce.300ms="q"
+                            placeholder="name / slug / domain / api key..."
+                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:border-slate-400 focus:ring-0" />
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <label class="text-xs font-semibold text-slate-600">Status</label>
+                    <select wire:model.live="active"
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        <option value="">All</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <label class="text-xs font-semibold text-slate-600">Stack</label>
+                    <select wire:model.live="stack"
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        <option value="">All</option>
+                        <option value="laravel">laravel</option>
+                        <option value="codeigniter">codeigniter</option>
+                        <option value="django">django</option>
+                        <option value="other">other</option>
+                    </select>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <label class="text-xs font-semibold text-slate-600">Per Page</label>
+                    <select wire:model.live="per_page"
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="mt-4 flex justify-between text-xs text-slate-500">
+                <div wire:loading>
+                    <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+                </div>
+                <div>Total: {{ $total }} • Page {{ $page }} / {{ $lastPage }}</div>
+            </div>
+        </div>
+    </div>
+
+    {{-- TABLE (tanpa tampil API key) --}}
+    <div class="rounded-xl border border-slate-200 bg-white overflow-x-auto">
+    <div class="min-w-[1100px]">
+
+        <div class="grid grid-cols-12 bg-slate-50 text-slate-600 border-b border-slate-200">
+            <div class="col-span-1 px-6 py-3 text-sm font-semibold">No</div>
+            <div class="col-span-5 px-6 py-3 text-sm font-semibold">Name</div> {{-- was 3, +2 from slug --}}
+            <div class="col-span-2 px-6 py-3 text-sm font-semibold">Stack</div>
+            <div class="col-span-2 px-6 py-3 text-sm font-semibold">Status</div>
+            <div class="col-span-2 px-6 py-3 text-sm font-semibold">Aksi</div>
+        </div>
+
+        <div class="divide-y divide-slate-100">
+            @forelse($apps as $app)
+                @php $no = ($page - 1) * $per_page + $loop->iteration; @endphp
+
+                <div class="grid grid-cols-12 hover:bg-slate-50 transition">
+                    <div class="col-span-1 px-6 py-4">
+                        <div class="font-bold text-slate-900">{{ $no }}</div>
+                    </div>
+
+                    <div class="col-span-5 px-6 py-4 min-w-0">
+                        <div class="font-semibold text-slate-900 truncate">{{ $app->name }}</div>
+                        <div class="text-xs text-slate-500 truncate">{{ $app->domain ?? '-' }}</div>
+                    </div>
+
+                    <div class="col-span-2 px-6 py-4">
+                        <span class="inline-flex px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs">
+                            {{ $app->stack }}
+                        </span>
+                    </div>
+
+                    <div class="col-span-2 px-6 py-4">
+                        @if($app->is_active)
+                            <span class="inline-flex px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs">
+                                Active
+                            </span>
+                        @else
+                            <span class="inline-flex px-2 py-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                                Inactive
+                            </span>
+                        @endif
+                    </div>
+
+                    <div class="col-span-2 px-6 py-4 flex justify-end gap-2">
+                        <button type="button"
+                            wire:click="detail(@js($app->id))"
+                            class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm hover:bg-slate-50">
+                            Detail
+                        </button>
+
+                        <button type="button"
+                            wire:click="edit(@js($app->id))"
+                            class="px-3 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800">
+                            Edit
+                        </button>
+
+                        <button type="button"
+                            wire:click="delete(@js($app->id))"
+                            class="px-3 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 text-sm hover:bg-rose-100">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            @empty
+                <div class="px-6 py-10 text-center text-slate-500">
+                    Tidak ada aplikasi ditemukan.
+                </div>
+            @endforelse
+        </div>
+    </div>
+
+        {{-- Pagination --}}
+        @if ($lastPage > 1)
+            @php
+                $current = $page;
+                $last = $lastPage;
+                $start = max(1, $current - 2);
+                $end = min($last, $current + 2);
+            @endphp
+
+            <div class="border-t border-slate-200 p-4 sm:p-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+                    <div class="text-xs text-slate-500">
+                        Page <span class="font-semibold text-slate-700">{{ $current }}</span>
+                        of <span class="font-semibold text-slate-700">{{ $last }}</span>
+                        • Total <span class="font-semibold text-slate-700">{{ $total }}</span>
+                    </div>
+
+                    <div class="flex items-center justify-between sm:justify-end gap-2">
+
+                        <button type="button" wire:click="prevPage" @disabled($current <= 1)
+                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-chevron-left"></i> Prev
+                        </button>
+
+                        <div class="hidden sm:flex items-center gap-1">
+                            @if ($start > 1)
+                                <button wire:click="gotoPage(1, {{ $last }})"
+                                    class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm">1</button>
+                                @if ($start > 2) <span class="px-2 text-slate-400">…</span> @endif
+                            @endif
+
+                            @for ($p = $start; $p <= $end; $p++)
+                                @if ($p === $current)
+                                    <span class="h-10 w-10 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white text-sm">{{ $p }}</span>
+                                @else
+                                    <button wire:click="gotoPage({{ $p }}, {{ $last }})"
+                                        class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm">{{ $p }}</button>
+                                @endif
+                            @endfor
+
+                            @if ($end < $last)
+                                @if ($end < $last - 1) <span class="px-2 text-slate-400">…</span> @endif
+                                <button wire:click="gotoPage({{ $last }}, {{ $last }})"
+                                    class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm">{{ $last }}</button>
+                            @endif
+                        </div>
+
+                        <button type="button" wire:click="nextPage({{ $last }})" @disabled($current >= $last)
+                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            Next <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+        @endif
+    </div>
+</div>
