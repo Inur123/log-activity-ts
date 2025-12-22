@@ -14,7 +14,8 @@ class LogViewer extends Component
 {
     public string $action = 'index';
 
-    public ?int $logId = null;
+    // ✅ UUID string
+    public ?string $logId = null;
     public ?UnifiedLog $selectedLog = null;
 
     public string $q = '';
@@ -27,9 +28,6 @@ class LogViewer extends Component
 
     public int $page = 1;
 
-    // ==========================
-    // Pagination Controls
-    // ==========================
     public function gotoPage(int $p, int $lastPage): void
     {
         $this->page = max(1, min($p, $lastPage));
@@ -45,10 +43,8 @@ class LogViewer extends Component
         if ($this->page > 1) $this->page--;
     }
 
-    // ===================
-    // NAVIGATION
-    // ===================
-    public function showDetail(int $id): void
+    // ✅ UUID param
+    public function showDetail(string $id): void
     {
         $this->logId = $id;
         $this->selectedLog = UnifiedLog::with('application')->findOrFail($id);
@@ -62,9 +58,6 @@ class LogViewer extends Component
         $this->selectedLog = null;
     }
 
-    // ===================
-    // QUERY
-    // ===================
     private function buildQuery()
     {
         $query = UnifiedLog::query()->with('application');
@@ -82,11 +75,11 @@ class LogViewer extends Component
             $q = trim($this->q);
 
             $query->where(function ($sub) use ($q) {
-                if (ctype_digit($q)) {
-                    $sub->orWhere('id', (int)$q);
-                }
+                // UUID bukan digit-only, jadi bagian ini opsional:
+                // if (ctype_digit($q)) { ... }
 
-                $sub->orWhereRaw("CAST(payload AS CHAR) LIKE ?", ["%$q%"])
+                $sub->orWhere('id', $q) // ✅ search langsung UUID
+                    ->orWhereRaw("CAST(payload AS CHAR) LIKE ?", ["%$q%"])
                     ->orWhereHas('application', fn($app) =>
                         $app->where('name', 'like', "%$q%")
                     );
@@ -112,9 +105,6 @@ class LogViewer extends Component
         return [$items, $total, $lastPage];
     }
 
-    // ===================
-    // PAYLOAD HELPERS
-    // ===================
     private function payloadToArray(mixed $payload): array
     {
         if (is_array($payload)) return $payload;
@@ -126,14 +116,11 @@ class LogViewer extends Component
 
         if (is_string($payload)) {
             $decoded = json_decode($payload, true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                return $decoded;
-            }
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) return $decoded;
             return ['_raw' => $payload];
         }
 
         if ($payload === null) return [];
-
         return ['_raw' => (string) $payload];
     }
 
@@ -159,13 +146,9 @@ class LogViewer extends Component
         return array_filter($summary, fn($v) => $v !== null);
     }
 
-    // ===================
-    // RENDER
-    // ===================
     public function render()
     {
         return match ($this->action) {
-
             'detail' => (function () {
                 $payloadArr = $this->payloadToArray($this->selectedLog?->payload);
 

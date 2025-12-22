@@ -3,12 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
 
 class UnifiedLog extends Model
 {
+    use HasUuids;
+
     const UPDATED_AT = null; // immutable
+
+    // ✅ UUID config
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'application_id',
@@ -58,7 +65,6 @@ class UnifiedLog extends Model
             ->when($end,   fn($q) => $q->where('created_at', '<=', Carbon::parse($end)->endOfDay()));
     }
 
-    // MySQL-friendly search JSON
     public function scopeSearchInPayload($query, $search)
     {
         $search = trim((string) $search);
@@ -71,10 +77,9 @@ class UnifiedLog extends Model
     {
         return data_get($this->payload, $key, $default);
     }
+
     public function getRouteKeyName(): string
-{
-    return 'id';
-}
-
-
+    {
+        return 'id';
+    }
 }

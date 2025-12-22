@@ -10,10 +10,12 @@
             </p>
         </div>
 
-        <a href="{{ route('super_admin.logs') }}"
-           class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
-            <i class="fa-solid fa-arrow-left"></i> Back
-        </a>
+       <button type="button"
+    wire:click="back"
+    class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
+    <i class="fa-solid fa-arrow-left"></i> Back
+</button>
+
     </div>
 
     {{-- Meta --}}

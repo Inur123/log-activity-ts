@@ -37,12 +37,9 @@
                     <label class="text-xs font-semibold text-slate-600">Search</label>
                     <div class="relative">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input
-                            type="text"
-                            wire:model.live.debounce.300ms="q"
+                        <input type="text" wire:model.live.debounce.300ms="q"
                             placeholder="ID / payload / nama aplikasi..."
-                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:border-slate-400 focus:ring-0"
-                        />
+                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:border-slate-400 focus:ring-0" />
                     </div>
                 </div>
 
@@ -52,7 +49,7 @@
                     <select wire:model.live="application_id"
                         class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
                         <option value="">All</option>
-                        @foreach($applications as $app)
+                        @foreach ($applications as $app)
                             <option value="{{ $app->id }}">{{ $app->name }}</option>
                         @endforeach
                     </select>
@@ -64,7 +61,7 @@
                     <select wire:model.live="log_type"
                         class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
                         <option value="">All</option>
-                        @foreach($logTypeOptions as $t)
+                        @foreach ($logTypeOptions as $t)
                             <option value="{{ $t }}">{{ $t }}</option>
                         @endforeach
                     </select>
@@ -117,59 +114,61 @@
         </div>
     </div>
 
-    {{-- Responsive Table --}}
-    <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    {{-- TABLE --}}
+    <div class="rounded-xl border border-slate-200 bg-white overflow-x-auto">
+        <div class="min-w-[980px]">
 
-        {{-- Table Header --}}
-        <div class="hidden lg:grid lg:grid-cols-12 bg-slate-50 text-slate-600 border-b border-slate-200">
-            <div class="col-span-2 px-6 py-3 text-sm font-semibold">#</div>
-            <div class="col-span-3 px-6 py-3 text-sm font-semibold">Application</div>
-            <div class="col-span-2 px-6 py-3 text-sm font-semibold">Type</div>
-            <div class="col-span-3 px-6 py-3 text-sm font-semibold">Payload</div>
-            <div class="col-span-2 px-6 py-3 text-sm font-semibold">Aksi</div>
-        </div>
+            {{-- Header --}}
+            <div class="grid grid-cols-12 bg-slate-50 text-slate-600 border-b border-slate-200">
+                <div class="col-span-1 px-6 py-3 text-sm font-semibold">No</div>
+                <div class="col-span-2 px-6 py-3 text-sm font-semibold">Application</div>
+                <div class="col-span-2 px-6 py-3 text-sm font-semibold">Type</div>
+                <div class="col-span-5 px-6 py-3 text-sm font-semibold">Payload</div>
+                <div class="col-span-2 px-6 py-3 text-sm font-semibold text-right">Aksi</div>
+            </div>
 
-        {{-- Table Body --}}
-        <div class="divide-y divide-slate-100">
+            {{-- Body --}}
+            <div class="divide-y divide-slate-100">
+                @forelse($logs as $log)
+                    @php
+                        $payloadPreview = is_string($log->payload)
+                            ? $log->payload
+                            : json_encode($log->payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-            @forelse($logs as $log)
+                        $no = ($page - 1) * $per_page + $loop->iteration;
+                    @endphp
 
-                @php
-                    $payloadPreview = is_string($log->payload)
-                        ? $log->payload
-                        : json_encode($log->payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                @endphp
+                    <div class="grid grid-cols-12 hover:bg-slate-50 transition">
 
-                <div class="p-4 lg:p-0 hover:bg-slate-50 transition">
-
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-0">
-
-                        {{-- ID --}}
-                        <div class="lg:col-span-2 lg:px-6 lg:py-4">
-                            <div class="font-bold text-slate-900">#{{ $log->id }}</div>
-                            <div class="text-xs text-slate-500">App: {{ $log->application_id }}</div>
+                        {{-- No (MATCH header col-span-1) --}}
+                        <div class="col-span-1 px-6 py-4">
+                            <div class="font-bold text-slate-900">{{ $no }}</div>
                         </div>
 
-                        {{-- Application --}}
-                        <div class="lg:col-span-3 lg:px-6 lg:py-4">
-                            <div class="font-semibold text-slate-900">{{ $log->application->name ?? '-' }}</div>
+                        {{-- Application (MATCH header col-span-2) --}}
+                        <div class="col-span-2 px-6 py-4 min-w-0">
+                            <div class="font-semibold text-slate-900 truncate">
+                                {{ $log->application->name ?? '-' }}
+                            </div>
                         </div>
 
-                        {{-- Type --}}
-                        <div class="lg:col-span-2 lg:px-6 lg:py-4">
-                            <span class="inline-flex px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700">
+                        {{-- Type (MATCH header col-span-2) --}}
+                        <div class="col-span-2 px-6 py-4">
+                            <span class="inline-flex px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs">
                                 {{ $log->log_type ?: '-' }}
                             </span>
                         </div>
 
-                        {{-- Payload Preview --}}
-                        <div class="lg:col-span-3 lg:px-6 lg:py-4 text-sm text-slate-600 truncate">
-                            {{ \Illuminate\Support\Str::limit($payloadPreview, 120) }}
+                        {{-- Payload (MATCH header col-span-5) --}}
+                        <div class="col-span-5 px-6 py-4 min-w-0">
+                            <div class="text-sm text-slate-600 truncate">
+                                {{ $payloadPreview }}
+                            </div>
                         </div>
 
-                        {{-- Aksi --}}
-                        <div class="lg:col-span-2 lg:px-6 lg:py-4 flex lg:justify-end">
-                            <button wire:click="showDetail({{ $log->id }})"
+                        {{-- Aksi (MATCH header col-span-2) --}}
+                        <div class="col-span-2 px-6 py-4 flex justify-end">
+                            <button wire:click="showDetail(@js($log->id))"
                                 class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800">
                                 Detail
                             </button>
@@ -177,77 +176,75 @@
 
                     </div>
 
-                </div>
-
-            @empty
-
-                <div class="px-6 py-10 text-center text-slate-500">
-                    Tidak ada log ditemukan.
-                </div>
-
-            @endforelse
+                @empty
+                    <div class="px-6 py-10 text-center text-slate-500">
+                        Tidak ada log ditemukan.
+                    </div>
+                @endforelse
+            </div>
 
         </div>
 
-        {{-- Pagination (ORIGINAL, tidak diubah) --}}
-        @if($lastPage > 1)
+        {{-- Pagination (FIX SIZE supaya tidak membesar) --}}
+        @if ($lastPage > 1)
             @php
                 $current = $page;
                 $last = $lastPage;
                 $start = max(1, $current - 2);
-                $end   = min($last, $current + 2);
+                $end = min($last, $current + 2);
             @endphp
 
             <div class="border-t border-slate-200 p-4 sm:p-6">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
-                    {{-- Left --}}
                     <div class="text-xs text-slate-500">
                         Page <span class="font-semibold text-slate-700">{{ $current }}</span>
                         of <span class="font-semibold text-slate-700">{{ $last }}</span>
                         • Total <span class="font-semibold text-slate-700">{{ $total }}</span>
                     </div>
 
-                    {{-- Right --}}
                     <div class="flex items-center justify-between sm:justify-end gap-2">
 
                         <button type="button"
                             wire:click="prevPage"
-                            class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50"
-                            @disabled($current <= 1)>
-                            <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+                            @disabled($current <= 1)
+                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-chevron-left"></i>
+                            Prev
                         </button>
 
                         <div class="hidden sm:flex items-center gap-1">
 
-                            @if($start > 1)
+                            @if ($start > 1)
                                 <button wire:click="gotoPage(1, {{ $last }})"
-                                    class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50">
+                                    class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm">
                                     1
                                 </button>
-                                @if($start > 2)
+                                @if ($start > 2)
                                     <span class="px-2 text-slate-400">…</span>
                                 @endif
                             @endif
 
-                            @for($p = $start; $p <= $end; $p++)
-                                @if($p === $current)
-                                    <span class="px-3 py-2 rounded-xl bg-slate-900 text-white">{{ $p }}</span>
+                            @for ($p = $start; $p <= $end; $p++)
+                                @if ($p === $current)
+                                    <span class="h-10 w-10 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white text-sm">
+                                        {{ $p }}
+                                    </span>
                                 @else
                                     <button wire:click="gotoPage({{ $p }}, {{ $last }})"
-                                        class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50">
+                                        class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm">
                                         {{ $p }}
                                     </button>
                                 @endif
                             @endfor
 
-                            @if($end < $last)
-                                @if($end < $last - 1)
+                            @if ($end < $last)
+                                @if ($end < $last - 1)
                                     <span class="px-2 text-slate-400">…</span>
                                 @endif
 
                                 <button wire:click="gotoPage({{ $last }}, {{ $last }})"
-                                    class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50">
+                                    class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm">
                                     {{ $last }}
                                 </button>
                             @endif
@@ -256,17 +253,18 @@
 
                         <button type="button"
                             wire:click="nextPage({{ $last }})"
-                            class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50"
-                            @disabled($current >= $last)>
-                            Next <i class="fa-solid fa-chevron-right ml-1"></i>
+                            @disabled($current >= $last)
+                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            Next
+                            <i class="fa-solid fa-chevron-right"></i>
                         </button>
 
                     </div>
 
                 </div>
             </div>
-
         @endif
+
     </div>
 
 </div>
