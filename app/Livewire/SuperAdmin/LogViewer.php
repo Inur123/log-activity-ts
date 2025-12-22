@@ -14,7 +14,7 @@ class LogViewer extends Component
 {
     public string $action = 'index';
 
-    // ✅ UUID string
+    //  UUID string
     public ?string $logId = null;
     public ?UnifiedLog $selectedLog = null;
 
@@ -43,7 +43,7 @@ class LogViewer extends Component
         if ($this->page > 1) $this->page--;
     }
 
-    // ✅ UUID param
+    //  UUID param
     public function showDetail(string $id): void
     {
         $this->logId = $id;
@@ -78,7 +78,7 @@ class LogViewer extends Component
                 // UUID bukan digit-only, jadi bagian ini opsional:
                 // if (ctype_digit($q)) { ... }
 
-                $sub->orWhere('id', $q) // ✅ search langsung UUID
+                $sub->orWhere('id', $q) //  search langsung UUID
                     ->orWhereRaw("CAST(payload AS CHAR) LIKE ?", ["%$q%"])
                     ->orWhereHas('application', fn($app) =>
                         $app->where('name', 'like', "%$q%")
