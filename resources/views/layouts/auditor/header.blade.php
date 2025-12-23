@@ -7,12 +7,12 @@
                 <i class="fa-solid fa-bars"></i>
             </button>
 
-            <div>
+             <div>
                 <div class="text-xs text-slate-500">
-                    {{ $breadcrumb ?? 'Home' }}
+                    Home
                 </div>
                 <div class="font-bold">
-                    {{ $page_title ?? 'Dashboard' }}
+                    Dashboard
                 </div>
             </div>
         </div>

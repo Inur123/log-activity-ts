@@ -14,9 +14,13 @@ class Logout extends Component
         request()->session()->invalidate();
         request()->session()->regenerateToken();
 
+        // toast setelah redirect -> session flash
+        session()->flash('toast', [
+            'type' => 'success',
+            'message' => 'Berhasil logout.',
+        ]);
 
         return $this->redirectRoute('login', navigate: true);
-
     }
 
     public function render()

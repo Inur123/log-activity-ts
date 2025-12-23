@@ -36,11 +36,9 @@ class Login extends Component
 
         $user = User::query()->where('email', $this->email)->first();
 
+        // akun ada tapi belum aktif -> toast error (tanpa redirect)
         if ($user && !$user->is_active) {
-            $this->dispatch('flash', [
-                'type' => 'error',
-                'message' => 'Akun Anda belum diaktifkan. Silakan hubungi admin untuk aktivasi akun.'
-            ]);
+            $this->dispatch('flash', type: 'error', message: 'Akun Anda belum diaktifkan. Silakan hubungi admin untuk aktivasi akun.');
             return;
         }
 
@@ -51,11 +49,18 @@ class Login extends Component
         ]);
 
         if (!$ok) {
+            // bisa toast atau error validation
             $this->addError('email', 'Email atau password salah.');
             return;
         }
 
         session()->regenerate();
+
+        // toast sukses -> pakai session flash karena setelah redirect
+        session()->flash('toast', [
+            'type' => 'success',
+            'message' => 'Login berhasil.',
+        ]);
 
         $user = Auth::user();
 

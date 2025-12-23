@@ -9,7 +9,7 @@
         </div>
 
         <button type="button" wire:click="back"
-            class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
+            class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer">
             <i class="fa-solid fa-arrow-left"></i>
             Back
         </button>
@@ -58,7 +58,7 @@
                 @endif
             </div>
 
-            {{-- API KEY (masked + eye) --}}
+
             {{-- API KEY (compact + eye + copy) --}}
             <div class="sm:col-span-2 p-3 rounded-lg bg-slate-50 border border-slate-200" x-data="{
                 show: false,
@@ -73,17 +73,18 @@
 
                 <div class="flex items-center gap-2">
                     {{-- KEY --}}
-                    <div class="flex-1 font-mono text-xs text-slate-900 truncate">
-                        <span x-show="!show" class="tracking-[0.22em] select-none">
-                            ••••••••••••••••••••••••••••••••
-                        </span>
-                        <span x-show="show" x-cloak>{{ $app->api_key ?? $displayApiKey }}</span>
+                    <div class="flex-1">
+                        <input :type="show ? 'text' : 'password'" readonly value="{{ $app->api_key ?? $displayApiKey }}"
+                            class="w-full bg-transparent border-0 p-0
+                       font-mono text-xs text-slate-900
+                       focus:outline-none focus:ring-0
+                       select-all">
                     </div>
 
                     {{-- COPY --}}
                     <button type="button"
                         class="h-9 w-9 inline-flex items-center justify-center rounded-lg
-                   border border-slate-200 bg-white hover:bg-slate-100 text-slate-600"
+                   border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 cursor-pointer"
                         x-on:click="copy('{{ $app->api_key ?? $displayApiKey }}')" title="Copy API Key">
                         <i class="fa-regular fa-copy"></i>
                     </button>
@@ -91,7 +92,7 @@
                     {{-- EYE --}}
                     <button type="button"
                         class="h-9 w-9 inline-flex items-center justify-center rounded-lg
-                   border border-slate-200 bg-white hover:bg-slate-100 text-slate-600"
+                   border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 cursor-pointer"
                         x-on:click="show = !show" title="Show / Hide">
                         <i class="fa-solid" :class="show ? 'fa-eye-slash' : 'fa-eye'"></i>
                     </button>

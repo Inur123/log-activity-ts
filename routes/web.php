@@ -11,6 +11,7 @@ use App\Livewire\SuperAdmin\Application as SuperAdminApplication;
 
 
 use App\Livewire\Auditor\Dashboard as AuditorDashboard;
+use App\Livewire\Auditor\LogViewer as AuditorLogViewer;
 
 
 Route::middleware('guest')->group(function () {
@@ -34,4 +35,5 @@ Route::middleware(['auth', 'role:auditor'])
     ->name('auditor.')
     ->group(function () {
     Route::get('/dashboard', AuditorDashboard::class)->name('dashboard');
+    Route::get('/logs', AuditorLogViewer::class)->name('logs');
     });

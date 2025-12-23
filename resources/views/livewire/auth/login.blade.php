@@ -13,13 +13,16 @@
 
     {{-- Card --}}
     <div class="rounded-2xl bg-white border border-slate-200 p-8 sm:p-10">
-        <form wire:submit.prevent="login" class="space-y-6">
-
+        <form
+            x-data="{ show: false }"
+            x-init="$nextTick(() => $refs.email?.focus())"
+            @submit.prevent="$wire.login()"
+            @keydown.enter.prevent="$wire.login()"
+            class="space-y-6"
+        >
             {{-- EMAIL --}}
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-2">
-                    Email
-                </label>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Email</label>
 
                 <div class="relative">
                     <span class="absolute inset-y-0 left-4 flex items-center text-slate-400">
@@ -27,8 +30,10 @@
                     </span>
 
                     <input
+                        x-ref="email"
                         type="email"
-                        wire:model.defer="email"
+                        wire:model.live="email"
+                        autofocus
                         placeholder="nama@email.com"
                         autocomplete="email"
                         class="w-full rounded-xl border border-slate-200 bg-slate-50
@@ -43,10 +48,8 @@
             </div>
 
             {{-- PASSWORD --}}
-            <div x-data="{ show: false }">
-                <label class="block text-sm font-semibold text-slate-700 mb-2">
-                    Password
-                </label>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Password</label>
 
                 <div class="relative">
                     <span class="absolute inset-y-0 left-4 flex items-center text-slate-400">
@@ -55,7 +58,7 @@
 
                     <input
                         :type="show ? 'text' : 'password'"
-                        wire:model.defer="password"
+                        wire:model.live="password"
                         placeholder="••••••••"
                         autocomplete="current-password"
                         class="w-full rounded-xl border border-slate-200 bg-slate-50
@@ -68,7 +71,7 @@
                         type="button"
                         @click="show = !show"
                         class="absolute inset-y-0 right-4 flex items-center
-                               text-slate-500 hover:text-slate-700"
+                               text-slate-500 hover:text-slate-700 cursor-pointer"
                         aria-label="Toggle password"
                     >
                         <i class="fas" :class="show ? 'fa-eye-slash' : 'fa-eye'"></i>
@@ -83,15 +86,15 @@
             {{-- BUTTON --}}
             <button
                 type="submit"
-                wire:target="login"
                 wire:loading.attr="disabled"
+                wire:target="login"
                 class="w-full rounded-xl bg-slate-900 py-3
                        text-base font-semibold text-white
                        hover:bg-slate-800 transition
                        flex items-center justify-center gap-2
-                       disabled:opacity-70 disabled:cursor-not-allowed"
+                       disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
-                <span wire:loading.remove wire:target="login">
+                <span wire:loading.remove wire:target="login" class="flex items-center gap-2">
                     <i class="fas fa-right-to-bracket"></i>
                     Login
                 </span>

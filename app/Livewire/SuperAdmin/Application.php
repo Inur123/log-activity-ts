@@ -113,19 +113,28 @@ class Application extends Component
             $this->selected->api_key = $this->pending_api_key;
         }
 
-        session()->flash('success', 'API Key baru dibuat (preview). Klik Save untuk menyimpan.');
+       $this->dispatch('flash', type: 'warning', message: 'API Key baru dibuat (preview). Klik Save untuk menyimpan.');
     }
 
     public function save(): void
     {
         $slug = Str::slug($this->name);
 
-        $this->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'domain' => ['nullable', 'string', 'max:255'],
+        $this->validate(
+        [
+            'name'       => ['required', 'string', 'max:100'],
+            'domain'     => ['nullable', 'string', 'max:255'],
             'form_stack' => ['required', 'in:laravel,codeigniter,django,other'],
-            'is_active' => ['boolean'],
-        ]);
+            'is_active'  => ['boolean'],
+        ],
+        [
+            'name.required'       => 'Name wajib diisi.',
+            'name.max'            => 'Name maksimal 100 karakter.',
+            'form_stack.required' => 'Stack wajib dipilih.',
+            'form_stack.in'       => 'Stack tidak valid.',
+            'domain.max'          => 'Domain maksimal 255 karakter.',
+        ]
+    );
 
         // slug unik
         $baseSlug = $slug;
@@ -179,7 +188,8 @@ class Application extends Component
         $this->resetForm();
         $this->dispatch('scroll-top');
 
-        session()->flash('success', 'Application saved.');
+       $this->dispatch('flash', type: 'success', message: 'Application saved.');
+
     }
 
     public function delete(string $id): void
@@ -187,7 +197,7 @@ class Application extends Component
         $app = ApplicationModel::findOrFail($id);
         $app->delete();
 
-        session()->flash('success', 'Application deleted.');
+        $this->dispatch('flash', type: 'success', message: 'Application deleted.');
         $this->dispatch('scroll-top');
     }
 
@@ -220,7 +230,6 @@ class Application extends Component
             $term = trim($this->q);
             $q->where(function ($sub) use ($term) {
                 $sub->where('name', 'like', "%{$term}%")
-                    ->orWhere('slug', 'like', "%{$term}%")
                     ->orWhere('domain', 'like', "%{$term}%")
                     ->orWhere('api_key', 'like', "%{$term}%");
             });

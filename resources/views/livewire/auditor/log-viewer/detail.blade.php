@@ -1,7 +1,7 @@
 <div class="space-y-4">
     <div class="flex items-start justify-between gap-3">
         <div>
-            <div class="text-xs text-slate-500">Super Admin • Log Viewer</div>
+            <div class="text-xs text-slate-500">Auditor • Log Viewer</div>
             <h1 class="text-xs font-bold text-slate-900">Log Detail #{{ $log->id }}</h1>
             <p class="text-sm text-slate-600">
                 {{ $log->application->name ?? '-' }} •
@@ -14,7 +14,6 @@
             class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer">
             <i class="fa-solid fa-arrow-left"></i> Back
         </button>
-
     </div>
 
     {{-- Meta --}}
@@ -48,8 +47,7 @@
             <div class="font-semibold text-slate-900 mb-3">Summary</div>
             <div class="flex flex-wrap gap-2">
                 @foreach ($summary as $k => $v)
-                    <span
-                        class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700">
                         <span class="font-semibold">{{ $k }}:</span>
                         <span class="max-w-[520px] truncate">{{ is_scalar($v) ? $v : json_encode($v) }}</span>
                     </span>
@@ -58,7 +56,7 @@
         </div>
     @endif
 
-    {{-- Payload (readable, no extra blade file) --}}
+    {{-- Payload --}}
     <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div class="px-4 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
             <div class="font-semibold text-slate-900">Payload</div>
@@ -68,58 +66,33 @@
         <div class="p-4 sm:p-6">
             @php
                 $isAssoc = function (array $arr) {
-                    if ($arr === []) {
-                        return false;
-                    }
+                    if ($arr === []) return false;
                     return array_keys($arr) !== range(0, count($arr) - 1);
                 };
 
                 $renderScalar = function ($value) {
-                    if (is_bool($value)) {
-                        return $value ? 'true' : 'false';
-                    }
-                    if ($value === null) {
-                        return 'null';
-                    }
-                    if (is_scalar($value)) {
-                        return (string) $value;
-                    }
+                    if (is_bool($value)) return $value ? 'true' : 'false';
+                    if ($value === null) return 'null';
+                    if (is_scalar($value)) return (string) $value;
                     return null;
                 };
 
                 $maskIfSensitive = function (string $key, ?string $scalar) {
                     $k = strtolower($key);
                     $sensitive = in_array($k, [
-                        'password',
-                        'token',
-                        'access_token',
-                        'refresh_token',
-                        'authorization',
-                        'secret',
-                        'api_key',
-                        'apikey',
+                        'password','token','access_token','refresh_token',
+                        'authorization','secret','api_key','apikey',
                     ]);
-                    if ($sensitive && $scalar !== null) {
-                        return '••••••••';
-                    }
-                    return $scalar;
+                    return ($sensitive && $scalar !== null) ? '••••••••' : $scalar;
                 };
 
-                $renderNode = function ($data, $level = 0) use (
-                    &$renderNode,
-                    $isAssoc,
-                    $renderScalar,
-                    $maskIfSensitive,
-                ) {
-                    if (!is_array($data)) {
-                        $data = ['_value' => $data];
-                    }
+                $renderNode = function ($data, $level = 0) use (&$renderNode, $isAssoc, $renderScalar, $maskIfSensitive) {
+                    if (!is_array($data)) $data = ['_value' => $data];
 
                     echo '<div class="space-y-2">';
 
                     foreach ($data as $key => $value) {
-                        $scalar = $renderScalar($value);
-                        $scalar = $maskIfSensitive((string) $key, $scalar);
+                        $scalar = $maskIfSensitive((string) $key, $renderScalar($value));
 
                         $isArray = is_array($value);
                         $hasChildren = $isArray && count($value) > 0;
@@ -136,19 +109,14 @@
                         echo '<div class="text-xs text-slate-500">Value</div>';
 
                         if ($scalar !== null) {
-                            echo '<div class="text-sm text-slate-800 break-words max-w-[720px]">' .
-                                e($scalar) .
-                                '</div>';
+                            echo '<div class="text-sm text-slate-800 break-words max-w-[720px]">' . e($scalar) . '</div>';
                         } elseif ($hasChildren) {
                             $label = $assoc ? 'Object' : 'List';
-                            echo '<div class="text-xs text-slate-500">' .
-                                $label .
-                                ' • ' .
-                                count($value) .
-                                ' item(s)</div>';
+                            echo '<div class="text-xs text-slate-500">' . $label . ' • ' . count($value) . ' item(s)</div>';
                         } else {
                             echo '<div class="text-sm text-slate-800">-</div>';
                         }
+
                         echo '</div>';
                         echo '</div>';
 
@@ -174,10 +142,8 @@
                 @php $renderNode($payload); @endphp
             @endif
 
-            {{-- Optional: Raw JSON untuk debugging --}}
             <details class="mt-4 rounded-xl border border-slate-200 bg-white overflow-hidden">
-                <summary
-                    class="cursor-pointer px-4 sm:px-6 py-4 border-b border-slate-200 font-semibold text-slate-900">
+                <summary class="cursor-pointer px-4 sm:px-6 py-4 border-b border-slate-200 font-semibold text-slate-900">
                     Raw JSON (advanced)
                 </summary>
                 <div class="p-4 sm:p-6">

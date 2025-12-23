@@ -4,7 +4,7 @@
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
             <h1 class="text-2xl font-bold text-slate-900">Log Viewer</h1>
-            <p class="text-slate-600 text-sm">Halaman Log Viewer untuk Super Admin.</p>
+            <p class="text-slate-600 text-sm">Halaman Log Viewer untuk Auditor.</p>
         </div>
     </div>
 
@@ -140,33 +140,28 @@
 
                     <div class="grid grid-cols-12 hover:bg-slate-50 transition">
 
-                        {{-- No (MATCH header col-span-1) --}}
                         <div class="col-span-1 px-6 py-4">
                             <div class="font-bold text-slate-900">{{ $no }}</div>
                         </div>
 
-                        {{-- Application (MATCH header col-span-2) --}}
                         <div class="col-span-2 px-6 py-4 min-w-0">
                             <div class="font-semibold text-slate-900 truncate">
                                 {{ $log->application->name ?? '-' }}
                             </div>
                         </div>
 
-                        {{-- Type (MATCH header col-span-2) --}}
                         <div class="col-span-2 px-6 py-4">
                             <span class="inline-flex px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs">
                                 {{ $log->log_type ?: '-' }}
                             </span>
                         </div>
 
-                        {{-- Payload (MATCH header col-span-5) --}}
                         <div class="col-span-5 px-6 py-4 min-w-0">
                             <div class="text-sm text-slate-600 truncate">
                                 {{ $payloadPreview }}
                             </div>
                         </div>
 
-                        {{-- Aksi (MATCH header col-span-2) --}}
                         <div class="col-span-2 px-6 py-4">
                             <button wire:click="showDetail(@js($log->id))"
                                 class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800 cursor-pointer">
@@ -175,7 +170,6 @@
                         </div>
 
                     </div>
-
                 @empty
                     <div class="px-6 py-10 text-center text-slate-500">
                         Tidak ada log ditemukan.
@@ -185,7 +179,7 @@
 
         </div>
 
-        {{-- Pagination (FIX SIZE supaya tidak membesar) --}}
+        {{-- Pagination --}}
         @if ($lastPage > 1)
             @php
                 $current = $page;
@@ -196,7 +190,6 @@
 
             <div class="border-t border-slate-200 p-4 sm:p-6">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
                     <div class="text-xs text-slate-500">
                         Page <span class="font-semibold text-slate-700">{{ $current }}</span>
                         of <span class="font-semibold text-slate-700">{{ $last }}</span>
@@ -204,7 +197,6 @@
                     </div>
 
                     <div class="flex items-center justify-between sm:justify-end gap-2">
-
                         <button type="button"
                             wire:click="prevPage"
                             @disabled($current <= 1)
@@ -214,7 +206,6 @@
                         </button>
 
                         <div class="hidden sm:flex items-center gap-1">
-
                             @if ($start > 1)
                                 <button wire:click="gotoPage(1, {{ $last }})"
                                     class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm">
@@ -248,7 +239,6 @@
                                     {{ $last }}
                                 </button>
                             @endif
-
                         </div>
 
                         <button type="button"
@@ -258,13 +248,10 @@
                             Next
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>
-
                     </div>
-
                 </div>
             </div>
         @endif
-
     </div>
 
 </div>
