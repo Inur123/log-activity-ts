@@ -39,7 +39,7 @@
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" wire:model.live.debounce.300ms="q"
                             placeholder="ID / payload / nama aplikasi..."
-                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:border-slate-400 focus:ring-0" />
+                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:border-gray-500 focus:ring-0 focus:outline-none"" />
                     </div>
                 </div>
 
@@ -47,7 +47,7 @@
                 <div class="lg:col-span-3">
                     <label class="text-xs font-semibold text-slate-600">Application</label>
                     <select wire:model.live="application_id"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
                         <option value="">All</option>
                         @foreach ($applications as $app)
                             <option value="{{ $app->id }}">{{ $app->name }}</option>
@@ -59,7 +59,7 @@
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">Log Type</label>
                     <select wire:model.live="log_type"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
                         <option value="">All</option>
                         @foreach ($logTypeOptions as $t)
                             <option value="{{ $t }}">{{ $t }}</option>
@@ -71,7 +71,7 @@
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">Per Page</label>
                     <select wire:model.live="per_page"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
                         <option value="10">10</option>
                         <option value="25">25</option>
                         <option value="50">50</option>
@@ -83,21 +83,21 @@
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">From</label>
                     <input type="date" wire:model.live="from"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 focus:border-gray-500 focus:ring-0 focus:outline-none">
                 </div>
 
                 {{-- To --}}
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">To</label>
                     <input type="date" wire:model.live="to"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 focus:border-gray-500 focus:ring-0 focus:outline-none">
                 </div>
 
                 {{-- Sort --}}
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">Sort</label>
                     <select wire:model.live="sort"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
                         <option value="newest">Newest</option>
                         <option value="oldest">Oldest</option>
                     </select>
@@ -208,7 +208,7 @@
                         <button type="button"
                             wire:click="prevPage"
                             @disabled($current <= 1)
-                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                             <i class="fa-solid fa-chevron-left"></i>
                             Prev
                         </button>
@@ -232,7 +232,7 @@
                                     </span>
                                 @else
                                     <button wire:click="gotoPage({{ $p }}, {{ $last }})"
-                                        class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm">
+                                        class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm cursor-pointer">
                                         {{ $p }}
                                     </button>
                                 @endif
@@ -254,7 +254,7 @@
                         <button type="button"
                             wire:click="nextPage({{ $last }})"
                             @disabled($current >= $last)
-                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                             Next
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>

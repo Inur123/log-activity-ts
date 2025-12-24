@@ -98,7 +98,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Name</label>
                     <input x-ref="first" autofocus type="text" wire:model.live="name" placeholder="Nama aplikasi"
-                        class="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:border-slate-400 focus:ring-0">
+                        class="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:border-gray-500 focus:ring-0 focus:outline-none">
                     @error('name')
                         <div class="text-xs text-rose-600 mt-1">{{ $message }}</div>
                     @enderror
@@ -108,7 +108,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Stack</label>
                     <select wire:model.live="form_stack"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
                         <option value="laravel">Laravel</option>
                         <option value="codeigniter">CodeIgniter</option>
                         <option value="django">Django</option>
@@ -125,7 +125,7 @@
                         Domain <span class="font-normal text-slate-400">(optional)</span>
                     </label>
                     <input type="text" wire:model.live="domain" placeholder="contoh: app.domain.com"
-                        class="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:border-slate-400 focus:ring-0">
+                        class="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:border-gray-500 focus:ring-0 focus:outline-none">
                     @error('domain')
                         <div class="text-xs text-rose-600 mt-1">{{ $message }}</div>
                     @enderror

@@ -37,3 +37,11 @@ Route::middleware(['auth', 'role:auditor'])
     Route::get('/dashboard', AuditorDashboard::class)->name('dashboard');
     Route::get('/logs', AuditorLogViewer::class)->name('logs');
     });
+
+Route::get('/api/v1/logs', function () {
+    return response()
+        ->view('errors.api-post-only', [
+            'endpoint' => '/api/v1/logs',
+            'method'   => 'POST',
+        ], 200);
+});
