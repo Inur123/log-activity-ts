@@ -25,23 +25,23 @@ Daftarkan aplikasi Anda dan dapatkan API Key dari dashboard admin.
 ### 2. Verify API Key
 
 ```bash
-curl -X GET https://api.example.com/v1/logs/verify \
+curl -X GET http://localhost:8000/api/v1/logs/verify \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### 3. Send Your First Log
 
 ```bash
-curl -X POST https://api.example.com/v1/logs \
+curl -X POST http://localhost:8000/api/v1/logs \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "log_type": "AUTH_LOGIN",
     "payload": {
-      "user_id": 123,
-      "email": "user@example.com",
-      "ip": "192.168.1.1",
-      "device": "Chrome on Windows"
+      "user_id": "user123",
+      "ip_address": "192.168.1.1",
+      "user_agent": "Mozilla/5.0...",
+      "login_method": "email"
     }
   }'
 ```
@@ -88,14 +88,16 @@ Gunakan endpoint ini untuk memverifikasi bahwa API Key Anda valid dan mendapatka
 
 ## Rate Limiting
 
-API menerapkan rate limiting untuk menjaga stabilitas:
+API memiliki rate limit untuk mencegah abuse.
 
-- **Limit:** 1000 request per menit per aplikasi
-- **Header Response:** `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1704067200
+```
 
-Ketika limit terlampaui, API akan mengembalikan:
+Jika limit terlampaui, API akan return status **429**:
 
-**Response (429 Too Many Requests):**
 ```json
 {
   "success": false,
@@ -114,7 +116,7 @@ Tunggu `retry_after` detik sebelum melakukan request berikutnya.
 
 Mengirimkan log event ke sistem. Log akan divalidasi dan di-queue untuk diproses.
 
-**URL:** `POST https://api.example.com/v1/logs`
+**URL:** `POST http://localhost:8000/api/v1/logs`
 
 **Headers:**
 ```
@@ -207,9 +209,7 @@ Log keluar pengguna dari aplikasi.
   "log_type": "AUTH_LOGOUT",
   "payload": {
     "user_id": 123,
-    "email": "user@example.com",
-    "ip": "192.168.1.1",
-    "device": "Chrome on Windows"
+    "email": "user@example.com"
   }
 }
 ```
@@ -219,8 +219,6 @@ Log keluar pengguna dari aplikasi.
 |-------|------|-------------|
 | `user_id` | integer | User ID (nullable) |
 | `email` | string | Email address |
-| `ip` | string | IP address (nullable) |
-| `device` | string | Device/browser info (nullable) |
 
 ---
 
@@ -703,7 +701,7 @@ Berikut ini adalah contoh request untuk setiap log type dengan positive dan nega
 
 ### ⚙️ Setup Postman
 
-1. **Import Collection:** Copy endpoint `https://api.example.com/v1/logs` ke Postman
+1. **Import Collection:** Copy endpoint `http://localhost:8000/api/v1/logs` ke Postman
 2. **Set Authorization:** Tambahkan API Key Anda di tab Authorization dengan type `Bearer Token`
 3. **Content-Type:** Pastikan header `Content-Type: application/json` sudah diatur
 4. **Test Each Log Type:** Jalankan positive test dulu, kemudian negative test untuk memahami behavior API
@@ -1184,27 +1182,13 @@ Berikut ini adalah contoh request untuk setiap log type dengan positive dan nega
 
 ---
 
-### 📋 Testing Checklist
-
-Sebelum go-live, pastikan Anda sudah test:
-
-- [x] Setiap log type dengan positive case
-- [x] Field yang required tidak ada (negative test)
-- [x] Format data tidak sesuai (invalid email, method, channel, dll)
-- [x] Rate limiting behavior (kirim >1000 request dalam 1 menit)
-- [x] API Key yang invalid atau expired
-- [x] Response time untuk setiap endpoint
-- [x] Hash chain integrity (data tidak bisa dimanipulasi setelah di-log)
-
----
-
 ## Examples
 
 ### JavaScript/Node.js
 
 ```javascript
 const API_KEY = 'your_api_key_here';
-const API_URL = 'https://api.example.com/v1/logs';
+const API_URL = 'http://localhost:8000/api/v1/logs';
 
 async function sendLog(logType, payload) {
   try {
@@ -1244,10 +1228,9 @@ sendLog('AUTH_LOGIN', {
 
 ```python
 import requests
-import json
 
 API_KEY = 'your_api_key_here'
-API_URL = 'https://api.example.com/v1/logs'
+API_URL = 'http://localhost:8000/api/v1/logs'
 
 def send_log(log_type, payload):
     headers = {
@@ -1282,7 +1265,7 @@ send_log('AUTH_LOGIN', {
 <?php
 
 $apiKey = 'your_api_key_here';
-$apiUrl = 'https://api.example.com/v1/logs';
+$apiUrl = 'http://localhost:8000/api/v1/logs';
 
 function sendLog($logType, $payload) {
     global $apiKey, $apiUrl;
@@ -1329,15 +1312,16 @@ sendLog('AUTH_LOGIN', [
 ### cURL
 
 ```bash
-curl -X POST https://api.example.com/v1/logs \
+curl -X POST http://localhost:8000/api/v1/logs \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "log_type": "AUTH_LOGIN",
     "payload": {
-      "user_id": 123,
-      "email": "user@example.com",
-      "device": "Chrome on Windows"
+      "user_id": "user123",
+      "ip_address": "192.168.1.1",
+      "user_agent": "Mozilla/5.0...",
+      "login_method": "email"
     }
   }'
 ```
