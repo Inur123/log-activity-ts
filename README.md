@@ -11,6 +11,7 @@ Unified Logging API adalah REST API untuk mencatat berbagai jenis event dan akti
 - [Log Types & Payload Requirements](#log-types--payload-requirements)
 - [Response Formats](#response-formats)
 - [Error Handling](#error-handling)
+- [Testing & Postman Examples](#testing--postman-examples)
 - [Examples](#examples)
 
 ---
@@ -696,54 +697,557 @@ async function sendLog(logData) {
 
 ---
 
-## Examples
+## Testing & Postman Examples
 
-### 1. JavaScript/Node.js
+Berikut ini adalah contoh request untuk setiap log type dengan positive dan negative test cases yang dapat Anda gunakan di Postman.
 
-```javascript
-const API_KEY = 'your-api-key';
-const API_URL = 'https://api.example.com/v1';
+### ⚙️ Setup Postman
 
-async function sendLog(logType, payload) {
-  const response = await fetch(`${API_URL}/logs`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      log_type: logType,
-      payload: payload
-    })
-  });
+1. **Import Collection:** Copy endpoint `https://api.example.com/v1/logs` ke Postman
+2. **Set Authorization:** Tambahkan API Key Anda di tab Authorization dengan type `Bearer Token`
+3. **Content-Type:** Pastikan header `Content-Type: application/json` sudah diatur
+4. **Test Each Log Type:** Jalankan positive test dulu, kemudian negative test untuk memahami behavior API
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Log failed: ${error.message}`);
+---
+
+### A. Authentication Logs
+
+#### AUTH_LOGIN
+
+**✅ Positive Test - Successful Login:**
+```json
+{
+  "log_type": "AUTH_LOGIN",
+  "payload": {
+    "user_id": 2,
+    "email": "admin@gmail.com",
+    "device": "Chrome Windows"
   }
-
-  return await response.json();
 }
+```
 
-// Usage
-await sendLog('AUTH_LOGIN', {
-  user_id: 123,
-  email: 'user@example.com',
-  ip: '192.168.1.1',
-  device: 'Chrome on Windows'
-});
+**Response (202 Accepted):**
+```json
+{
+  "success": true,
+  "message": "Log received and queued for processing",
+  "queued_at": "2024-01-15T10:30:45.123456Z"
+}
+```
+
+**❌ Negative Test - Invalid Email Format:**
+```json
+{
+  "log_type": "AUTH_LOGIN",
+  "payload": {
+    "user_id": 2,
+    "email": "admin-gmail.com",
+    "device": "Chrome Windows"
+  }
+}
+```
+
+**Response (422):**
+```json
+{
+  "success": false,
+  "message": "Payload validation failed",
+  "errors": {
+    "payload.email": ["The payload.email field must be a valid email."]
+  }
+}
 ```
 
 ---
 
-### 2. Python
+#### AUTH_LOGOUT
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "AUTH_LOGOUT",
+  "payload": {
+    "user_id": 2,
+    "email": "admin@gmail.com"
+  }
+}
+```
+
+**❌ Negative Test - Missing Required Email:**
+```json
+{
+  "log_type": "AUTH_LOGOUT",
+  "payload": {
+    "user_id": 2
+  }
+}
+```
+
+---
+
+#### AUTH_LOGIN_FAILED
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "AUTH_LOGIN_FAILED",
+  "payload": {
+    "user_id": null,
+    "email": "admin@gmail.com",
+    "device": "Firefox Linux"
+  }
+}
+```
+
+**❌ Negative Test - Invalid Email:**
+```json
+{
+  "log_type": "AUTH_LOGIN_FAILED",
+  "payload": {
+    "user_id": null,
+    "email": "admin-gmail.com"
+  }
+}
+```
+
+---
+
+### B. Access & Activity Logs
+
+#### ACCESS_ENDPOINT
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "ACCESS_ENDPOINT",
+  "payload": {
+    "user_id": 2,
+    "endpoint": "/products",
+    "method": "GET",
+    "status": 200
+  }
+}
+```
+
+**❌ Negative Test - Invalid HTTP Method:**
+```json
+{
+  "log_type": "ACCESS_ENDPOINT",
+  "payload": {
+    "user_id": 2,
+    "endpoint": "/products",
+    "method": "OPTIONS",
+    "status": 200
+  }
+}
+```
+
+**Allowed Methods:** GET, POST, PUT, PATCH, DELETE
+
+---
+
+#### DOWNLOAD_DOCUMENT
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "DOWNLOAD_DOCUMENT",
+  "payload": {
+    "user_id": 2,
+    "document_id": "DOC-99",
+    "document_name": "report.pdf"
+  }
+}
+```
+
+**❌ Negative Test - Missing Required document_id:**
+```json
+{
+  "log_type": "DOWNLOAD_DOCUMENT",
+  "payload": {
+    "user_id": 2
+  }
+}
+```
+
+---
+
+#### SEND_EXTERNAL
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "SEND_EXTERNAL",
+  "payload": {
+    "user_id": 2,
+    "channel": "EMAIL",
+    "to": "customer@gmail.com",
+    "message": "Invoice sent"
+  }
+}
+```
+
+**❌ Negative Test - Invalid Channel:**
+```json
+{
+  "log_type": "SEND_EXTERNAL",
+  "payload": {
+    "user_id": 2,
+    "channel": "SMS",
+    "to": "08123456789"
+  }
+}
+```
+
+**Allowed Channels:** WA, EMAIL, API
+
+---
+
+### C. Data & Audit Trail Logs
+
+#### DATA_CREATE
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "DATA_CREATE",
+  "payload": {
+    "user_id": 2,
+    "data": {
+      "resource": "product",
+      "id": 10,
+      "name": "Laptop"
+    }
+  }
+}
+```
+
+**❌ Negative Test - Missing data Field:**
+```json
+{
+  "log_type": "DATA_CREATE",
+  "payload": {
+    "user_id": 2
+  }
+}
+```
+
+---
+
+#### DATA_UPDATE
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "DATA_UPDATE",
+  "payload": {
+    "user_id": 2,
+    "before": { "id": 10, "price": 1000 },
+    "after": { "id": 10, "price": 1200 }
+  }
+}
+```
+
+**❌ Negative Test - Missing after Field:**
+```json
+{
+  "log_type": "DATA_UPDATE",
+  "payload": {
+    "user_id": 2,
+    "before": { "id": 10 }
+  }
+}
+```
+
+---
+
+#### DATA_DELETE
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "DATA_DELETE",
+  "payload": {
+    "user_id": 2,
+    "id": 10,
+    "reason": "Deleted by admin"
+  }
+}
+```
+
+**❌ Negative Test - Missing id Field:**
+```json
+{
+  "log_type": "DATA_DELETE",
+  "payload": {
+    "user_id": 2
+  }
+}
+```
+
+---
+
+#### STATUS_CHANGE
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "STATUS_CHANGE",
+  "payload": {
+    "user_id": 2,
+    "id": 99,
+    "from": "draft",
+    "to": "published"
+  }
+}
+```
+
+**❌ Negative Test - Missing to Field:**
+```json
+{
+  "log_type": "STATUS_CHANGE",
+  "payload": {
+    "user_id": 2,
+    "id": 99,
+    "from": "draft"
+  }
+}
+```
+
+---
+
+#### BULK_IMPORT
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "BULK_IMPORT",
+  "payload": {
+    "user_id": 2,
+    "total_rows": 100,
+    "success": 95,
+    "failed": 5,
+    "file_name": "import.xlsx"
+  }
+}
+```
+
+**❌ Negative Test - Invalid total_rows (Zero):**
+```json
+{
+  "log_type": "BULK_IMPORT",
+  "payload": {
+    "user_id": 2,
+    "total_rows": 0,
+    "success": 0,
+    "failed": 0
+  }
+}
+```
+
+---
+
+#### BULK_EXPORT
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "BULK_EXPORT",
+  "payload": {
+    "user_id": 2,
+    "total_rows": 200,
+    "success": 200,
+    "failed": 0,
+    "file_name": "export.xlsx"
+  }
+}
+```
+
+---
+
+### D. System & Validation Logs
+
+#### SYSTEM_ERROR
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "SYSTEM_ERROR",
+  "payload": {
+    "message": "Route not defined",
+    "code": "RouteNotFoundException",
+    "context": {
+      "url": "/products",
+      "method": "GET"
+    }
+  }
+}
+```
+
+**❌ Negative Test - Missing message Field:**
+```json
+{
+  "log_type": "SYSTEM_ERROR",
+  "payload": {
+    "code": "Exception"
+  }
+}
+```
+
+---
+
+#### VALIDATION_FAILED
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "VALIDATION_FAILED",
+  "payload": {
+    "user_id": 2,
+    "errors": {
+      "email": ["Email is required"],
+      "password": ["Minimum 8 chars"]
+    }
+  }
+}
+```
+
+**❌ Negative Test - Missing errors Field:**
+```json
+{
+  "log_type": "VALIDATION_FAILED",
+  "payload": {
+    "user_id": 2
+  }
+}
+```
+
+---
+
+### E. Security & Permission Logs
+
+#### SECURITY_VIOLATION
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "SECURITY_VIOLATION",
+  "payload": {
+    "user_id": null,
+    "reason": "Brute force attempt",
+    "meta": {
+      "email": "admin@gmail.com",
+      "attempt": 5
+    }
+  }
+}
+```
+
+**❌ Negative Test - Missing reason Field:**
+```json
+{
+  "log_type": "SECURITY_VIOLATION",
+  "payload": {
+    "user_id": null
+  }
+}
+```
+
+---
+
+#### PERMISSION_CHANGE
+
+**✅ Positive Test:**
+```json
+{
+  "log_type": "PERMISSION_CHANGE",
+  "payload": {
+    "user_id": 1,
+    "target_user_id": 2,
+    "before": { "role": "user" },
+    "after": { "role": "admin" }
+  }
+}
+```
+
+**❌ Negative Test - Missing target_user_id:**
+```json
+{
+  "log_type": "PERMISSION_CHANGE",
+  "payload": {
+    "user_id": 1,
+    "before": { "role": "user" },
+    "after": { "role": "admin" }
+  }
+}
+```
+
+---
+
+### 📋 Testing Checklist
+
+Sebelum go-live, pastikan Anda sudah test:
+
+- [x] Setiap log type dengan positive case
+- [x] Field yang required tidak ada (negative test)
+- [x] Format data tidak sesuai (invalid email, method, channel, dll)
+- [x] Rate limiting behavior (kirim >1000 request dalam 1 menit)
+- [x] API Key yang invalid atau expired
+- [x] Response time untuk setiap endpoint
+- [x] Hash chain integrity (data tidak bisa dimanipulasi setelah di-log)
+
+---
+
+## Examples
+
+### JavaScript/Node.js
+
+```javascript
+const API_KEY = 'your_api_key_here';
+const API_URL = 'https://api.example.com/v1/logs';
+
+async function sendLog(logType, payload) {
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        log_type: logType,
+        payload: payload
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Log sent successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error sending log:', error);
+  }
+}
+
+// Usage
+sendLog('AUTH_LOGIN', {
+  user_id: 123,
+  email: 'user@example.com',
+  device: 'Chrome on Windows'
+});
+```
+
+### Python
 
 ```python
 import requests
 import json
 
-API_KEY = 'your-api-key'
-API_URL = 'https://api.example.com/v1'
+API_KEY = 'your_api_key_here'
+API_URL = 'https://api.example.com/v1/logs'
 
 def send_log(log_type, payload):
     headers = {
@@ -756,77 +1260,83 @@ def send_log(log_type, payload):
         'payload': payload
     }
     
-    response = requests.post(
-        f'{API_URL}/logs',
-        headers=headers,
-        json=data
-    )
-    
-    if response.status_code != 202:
-        raise Exception(f"Log failed: {response.json()['message']}")
-    
-    return response.json()
+    try:
+        response = requests.post(API_URL, headers=headers, json=data)
+        response.raise_for_status()
+        print('Log sent successfully:', response.json())
+        return response.json()
+    except requests.exceptions.RequestException as error:
+        print(f'Error sending log: {error}')
 
 # Usage
 send_log('AUTH_LOGIN', {
     'user_id': 123,
     'email': 'user@example.com',
-    'ip': '192.168.1.1',
     'device': 'Chrome on Windows'
 })
 ```
 
----
-
-### 3. PHP/Laravel
+### PHP/Laravel
 
 ```php
-use Illuminate\Support\Facades\Http;
+<?php
 
-$apiKey = 'your-api-key';
-$apiUrl = 'https://api.example.com/v1';
+$apiKey = 'your_api_key_here';
+$apiUrl = 'https://api.example.com/v1/logs';
 
 function sendLog($logType, $payload) {
     global $apiKey, $apiUrl;
     
-    $response = Http::withHeaders([
-        'Authorization' => "Bearer {$apiKey}",
-        'Content-Type' => 'application/json'
-    ])->post("{$apiUrl}/logs", [
+    $headers = [
+        'Authorization: Bearer ' . $apiKey,
+        'Content-Type: application/json'
+    ];
+    
+    $data = json_encode([
         'log_type' => $logType,
         'payload' => $payload
     ]);
     
-    if ($response->failed()) {
-        throw new Exception("Log failed: {$response->json()['message']}");
-    }
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     
-    return $response->json();
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode === 202) {
+        echo 'Log sent successfully: ' . $response;
+        return json_decode($response, true);
+    } else {
+        echo 'Error: ' . $response;
+        return null;
+    }
 }
 
 // Usage
 sendLog('AUTH_LOGIN', [
     'user_id' => 123,
     'email' => 'user@example.com',
-    'ip' => '192.168.1.1',
     'device' => 'Chrome on Windows'
 ]);
+?>
 ```
 
----
-
-### 4. cURL
+### cURL
 
 ```bash
 curl -X POST https://api.example.com/v1/logs \
-  -H "Authorization: Bearer your-api-key" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "log_type": "AUTH_LOGIN",
     "payload": {
       "user_id": 123,
       "email": "user@example.com",
-      "ip": "192.168.1.1",
       "device": "Chrome on Windows"
     }
   }'
@@ -834,20 +1344,24 @@ curl -X POST https://api.example.com/v1/logs \
 
 ---
 
-## Best Practices
+## Support & Troubleshooting
 
-1. **Always include user_id** ketika memungkinkan untuk audit trail yang lebih baik
-2. **Use consistent log_type** untuk memudahkan analisis dan reporting
-3. **Include IP address** untuk security tracking
-4. **Handle rate limits gracefully** dengan retry exponential backoff
-5. **Test dengan verify endpoint** terlebih dahulu sebelum mengirim logs
-6. **Keep payload structure simple** dan hindari nested objects yang terlalu dalam
-7. **Use meta field** untuk data tambahan yang tidak termasuk di payload utama
+### Common Issues
 
----
+**"Invalid application context" (401)**
+- Pastikan API Key yang digunakan benar dan masih aktif
+- Periksa apakah endpoint URL sesuai
 
-## Support
+**"Validation failed" (422)**
+- Periksa format payload sesuai dengan spesifikasi log type
+- Email harus valid (format: email@domain.com)
+- HTTP method hanya: GET, POST, PUT, PATCH, DELETE
+- Channel hanya: WA, EMAIL, API
 
-Untuk pertanyaan atau issue teknis, hubungi tim support melalui:
-- Email: api-support@example.com
-- Dashboard: https://dashboard.example.com/support
+**"Too Many Requests" (429)**
+- Tunggu sesuai nilai `retry_after` dari response
+- Implementasikan exponential backoff di client Anda
+
+### Getting Help
+
+Untuk pertanyaan atau issue lainnya, hubungi tim support Anda.
