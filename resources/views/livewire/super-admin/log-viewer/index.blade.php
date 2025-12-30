@@ -36,14 +36,15 @@
                 <div class="lg:col-span-5">
                     <label class="text-xs font-semibold text-slate-600">Search</label>
                     <div class="relative">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <i
+                            class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" wire:model.live.debounce.300ms="q"
                             placeholder="ID / payload / nama aplikasi..."
-                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:border-gray-500 focus:ring-0 focus:outline-none"" />
+                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:border-gray-500 focus:ring-0 focus:outline-none" />
                     </div>
                 </div>
 
-                {{-- App --}}
+                {{-- App (FIX: .number) --}}
                 <div class="lg:col-span-3">
                     <label class="text-xs font-semibold text-slate-600">Application</label>
                     <select wire:model.live="application_id"
@@ -53,6 +54,7 @@
                             <option value="{{ $app->id }}">{{ $app->name }}</option>
                         @endforeach
                     </select>
+
                 </div>
 
                 {{-- Log Type --}}
@@ -70,13 +72,14 @@
                 {{-- Per Page --}}
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">Per Page</label>
-                    <select wire:model.live="per_page"
+                    <select wire:model.live.number="per_page"
                         class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
                         <option value="10">10</option>
                         <option value="25">25</option>
                         <option value="50">50</option>
                         <option value="100">100</option>
                     </select>
+
                 </div>
 
                 {{-- From --}}
@@ -140,35 +143,40 @@
 
                     <div class="grid grid-cols-12 hover:bg-slate-50 transition">
 
-                        {{-- No (MATCH header col-span-1) --}}
+                        {{-- No --}}
                         <div class="col-span-1 px-6 py-4">
                             <div class="font-bold text-slate-900">{{ $no }}</div>
                         </div>
 
-                        {{-- Application (MATCH header col-span-2) --}}
+                        {{-- Application --}}
                         <div class="col-span-2 px-6 py-4 min-w-0">
-                            <div class="font-semibold text-slate-900 truncate">
+                            <div class="font-semibold text-slate-900 truncate"
+                                title="{{ $log->application->name ?? '-' }}">
                                 {{ $log->application->name ?? '-' }}
                             </div>
                         </div>
 
-                        {{-- Type (MATCH header col-span-2) --}}
-                        <div class="col-span-2 px-6 py-4">
-                            <span class="inline-flex px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs">
+                        {{-- Type (FULL OK) --}}
+                        <div class="col-span-2 px-6 py-4 min-w-0">
+                            <span
+                                class="inline-block max-w-full px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs whitespace-normal break-all"
+                                title="{{ $log->log_type ?: '-' }}">
                                 {{ $log->log_type ?: '-' }}
                             </span>
                         </div>
 
-                        {{-- Payload (MATCH header col-span-5) --}}
+                        {{-- Payload (CLICKABLE) --}}
                         <div class="col-span-5 px-6 py-4 min-w-0">
-                            <div class="text-sm text-slate-600 truncate">
+                            <button type="button" wire:click="showDetail(@js($log->id))"
+                                class="w-full text-left text-xs font-mono text-slate-600 truncate hover:underline hover:text-slate-900 cursor-pointer"
+                                title="Klik untuk lihat detail">
                                 {{ $payloadPreview }}
-                            </div>
+                            </button>
                         </div>
 
-                        {{-- Aksi (MATCH header col-span-2) --}}
+                        {{-- Aksi --}}
                         <div class="col-span-2 px-6 py-4">
-                            <button wire:click="showDetail(@js($log->id))"
+                            <button type="button" wire:click="showDetail(@js($log->id))"
                                 class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800 cursor-pointer">
                                 Detail
                             </button>
@@ -185,7 +193,7 @@
 
         </div>
 
-        {{-- Pagination (FIX SIZE supaya tidak membesar) --}}
+        {{-- Pagination --}}
         @if ($lastPage > 1)
             @php
                 $current = $page;
@@ -205,16 +213,13 @@
 
                     <div class="flex items-center justify-between sm:justify-end gap-2">
 
-                        <button type="button"
-                            wire:click="prevPage"
-                            @disabled($current <= 1)
+                        <button type="button" wire:click="prevPage" @disabled($current <= 1)
                             class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                             <i class="fa-solid fa-chevron-left"></i>
                             Prev
                         </button>
 
                         <div class="hidden sm:flex items-center gap-1">
-
                             @if ($start > 1)
                                 <button wire:click="gotoPage(1, {{ $last }})"
                                     class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm">
@@ -227,7 +232,8 @@
 
                             @for ($p = $start; $p <= $end; $p++)
                                 @if ($p === $current)
-                                    <span class="h-10 w-10 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white text-sm">
+                                    <span
+                                        class="h-10 w-10 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white text-sm">
                                         {{ $p }}
                                     </span>
                                 @else
@@ -248,11 +254,9 @@
                                     {{ $last }}
                                 </button>
                             @endif
-
                         </div>
 
-                        <button type="button"
-                            wire:click="nextPage({{ $last }})"
+                        <button type="button" wire:click="nextPage({{ $last }})"
                             @disabled($current >= $last)
                             class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                             Next

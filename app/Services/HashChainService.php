@@ -18,17 +18,27 @@ class HashChainService
 
     public function generateHash(array $data, ?string $previousHash = null): string
     {
+        //  pastikan urutan data konsisten
         $this->ksortRecursive($data);
 
-        $payload = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-            . ($previousHash ?? '');
+        $payload = json_encode(
+            $data,
+            JSON_UNESCAPED_SLASHES |
+            JSON_UNESCAPED_UNICODE |
+            JSON_PRESERVE_ZERO_FRACTION
+        ) . ($previousHash ?? '');
 
         return hash('sha256', $payload);
     }
 
-    public function getPreviousHash(?int $applicationId = null): ?string
+    /**
+     *  prev hash per application_id
+     */
+    public function getPreviousHash(?string $applicationId = null): ?string
     {
-        $q = UnifiedLog::query()->latest('id');
+        $q = UnifiedLog::query()
+            ->latest('created_at')
+            ->latest('id'); //  deterministic kalau created_at sama
 
         if ($applicationId) {
             $q->where('application_id', $applicationId);
@@ -37,15 +47,23 @@ class HashChainService
         return $q->value('hash');
     }
 
-    public function verifyChain(?int $applicationId = null): array
+    /**
+     *  verifikasi chain (kalau ada yang edit manual DB -> ketahuan)
+     */
+    public function verifyChain(?string $applicationId = null): array
     {
-        $q = UnifiedLog::query()->orderBy('id');
+        $q = UnifiedLog::query()
+            ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc'); //  deterministic
 
         if ($applicationId) {
             $q->where('application_id', $applicationId);
         }
 
-        $logs = $q->get(['id','application_id','log_type','payload','hash','prev_hash','created_at']);
+        $logs = $q->get([
+            'id','application_id','log_type','payload','hash','prev_hash',
+            'ip_address','user_agent','created_at'
+        ]);
 
         if ($logs->isEmpty()) {
             return ['valid' => true, 'message' => 'No logs to verify'];
@@ -56,44 +74,41 @@ class HashChainService
         foreach ($logs as $i => $log) {
             $expectedPrev = $i === 0 ? null : $logs[$i - 1]->hash;
 
-            // 1) cek prev_hash
             if ($log->prev_hash !== $expectedPrev) {
                 $errors[] = [
-                    'log_id' => $log->id,
-                    'type' => 'prev_hash_mismatch',
-                    'expected' => $expectedPrev,
-                    'found' => $log->prev_hash,
+                    'log_id'    => (string) $log->id,
+                    'type'      => 'prev_hash_mismatch',
+                    'expected'  => $expectedPrev,
+                    'found'     => $log->prev_hash,
                 ];
-                // lanjut cek hash juga tetap boleh, tapi biasanya chain udah rusak
             }
 
-            // 2) cek hash beneran (recompute)
             $dataForHash = [
-                'application_id' => $log->application_id,
-                'log_type'       => $log->log_type,
+                'application_id' => (string) $log->application_id,
+                'log_type'       => (string) $log->log_type,
                 'payload'        => $log->payload,
-                'ip_address'     => $log->ip_address ?? null,
-                'user_agent'     => $log->user_agent ?? null,
-                'created_at'     => optional($log->created_at)->toISOString(),
+                'ip_address'     => $log->ip_address,
+                'user_agent'     => $log->user_agent,
+                'created_at'     => optional($log->created_at)->toISOString(), //  harus sama seperti saat insert
             ];
 
             $recomputed = $this->generateHash($dataForHash, $log->prev_hash);
 
             if (!hash_equals($log->hash, $recomputed)) {
                 $errors[] = [
-                    'log_id' => $log->id,
-                    'type' => 'hash_mismatch',
-                    'expected' => $recomputed,
-                    'found' => $log->hash,
+                    'log_id'    => (string) $log->id,
+                    'type'      => 'hash_mismatch',
+                    'expected'  => $recomputed,
+                    'found'     => $log->hash,
                 ];
             }
         }
 
         return [
-            'valid' => empty($errors),
-            'message' => empty($errors) ? 'Hash chain valid' : 'Hash chain broken',
-            'errors' => $errors,
-            'total_checked' => $logs->count(),
+            'valid'          => empty($errors),
+            'message'        => empty($errors) ? 'Hash chain valid' : 'Hash chain broken',
+            'errors'         => $errors,
+            'total_checked'  => $logs->count(),
         ];
     }
 }

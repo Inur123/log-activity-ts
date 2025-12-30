@@ -14,12 +14,18 @@ class LogViewer extends Component
 {
     public string $action = 'index';
 
-    //  UUID string
+    // UUID string
     public ?string $logId = null;
     public ?UnifiedLog $selectedLog = null;
 
     public string $q = '';
-    public ?int $application_id = null;
+
+    /**
+     * FIX: string agar aman untuk UUID / numeric.
+     * '' = All
+     */
+    public string $application_id = '';
+
     public string $log_type = '';
     public string $from = '';
     public string $to = '';
@@ -27,6 +33,18 @@ class LogViewer extends Component
     public string $sort = 'newest';
 
     public int $page = 1;
+
+    /**
+     * Reset page saat filter berubah
+     */
+    public function updated($name, $value): void
+    {
+        if (in_array($name, [
+            'q', 'application_id', 'log_type', 'from', 'to', 'per_page', 'sort'
+        ], true)) {
+            $this->page = 1;
+        }
+    }
 
     public function gotoPage(int $p, int $lastPage): void
     {
@@ -43,7 +61,6 @@ class LogViewer extends Component
         if ($this->page > 1) $this->page--;
     }
 
-    //  UUID param
     public function showDetail(string $id): void
     {
         $this->logId = $id;
@@ -66,7 +83,11 @@ class LogViewer extends Component
             ? $query->oldest('created_at')
             : $query->latest('created_at');
 
-        if ($this->application_id) $query->where('application_id', $this->application_id);
+        //  FIX FILTER APPLICATION
+        if ($this->application_id !== '') {
+            $query->where('application_id', $this->application_id);
+        }
+
         if ($this->log_type !== '') $query->where('log_type', $this->log_type);
         if ($this->from) $query->whereDate('created_at', '>=', $this->from);
         if ($this->to) $query->whereDate('created_at', '<=', $this->to);
@@ -75,10 +96,7 @@ class LogViewer extends Component
             $q = trim($this->q);
 
             $query->where(function ($sub) use ($q) {
-                // UUID bukan digit-only, jadi bagian ini opsional:
-                // if (ctype_digit($q)) { ... }
-
-                $sub->orWhere('id', $q) //  search langsung UUID
+                $sub->orWhere('id', $q)
                     ->orWhereRaw("CAST(payload AS CHAR) LIKE ?", ["%$q%"])
                     ->orWhereHas('application', fn($app) =>
                         $app->where('name', 'like', "%$q%")
@@ -159,19 +177,25 @@ class LogViewer extends Component
                 ]);
             })(),
 
-            default => view('livewire.super-admin.log-viewer.index', [
-                'logs' => $this->getFilteredLogs()[0],
-                'total' => $this->getFilteredLogs()[1],
-                'lastPage' => $this->getFilteredLogs()[2],
-                'applications' => Application::orderBy('name')->get(),
-                'logTypeOptions' => UnifiedLog::query()
-                    ->whereNotNull('log_type')
-                    ->where('log_type', '!=', '')
-                    ->distinct()
-                    ->orderBy('log_type')
-                    ->pluck('log_type'),
-                'page' => $this->page,
-            ]),
+            default => (function () {
+                //  jangan panggil 3x
+                [$logs, $total, $lastPage] = $this->getFilteredLogs();
+
+                return view('livewire.super-admin.log-viewer.index', [
+                    'logs' => $logs,
+                    'total' => $total,
+                    'lastPage' => $lastPage,
+                    'applications' => Application::orderBy('name')->get(),
+                    'logTypeOptions' => UnifiedLog::query()
+                        ->whereNotNull('log_type')
+                        ->where('log_type', '!=', '')
+                        ->distinct()
+                        ->orderBy('log_type')
+                        ->pluck('log_type'),
+                    'page' => $this->page,
+                    'per_page' => $this->per_page, //  wajib utk nomor urut
+                ]);
+            })(),
         };
     }
 }

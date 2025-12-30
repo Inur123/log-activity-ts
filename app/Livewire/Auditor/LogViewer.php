@@ -19,7 +19,14 @@ class LogViewer extends Component
     public ?UnifiedLog $selectedLog = null;
 
     public string $q = '';
-    public ?int $application_id = null;
+
+    /**
+     * IMPORTANT:
+     * Gunakan string agar aman untuk ID numeric maupun UUID.
+     * Default kosong = All
+     */
+    public string $application_id = '';
+
     public string $log_type = '';
     public string $from = '';
     public string $to = '';
@@ -27,6 +34,18 @@ class LogViewer extends Component
     public string $sort = 'newest';
 
     public int $page = 1;
+
+    /**
+     * Reset page saat filter berubah (biar hasil langsung terasa dan tidak nyangkut page lama)
+     */
+    public function updated($name, $value): void
+    {
+        if (in_array($name, [
+            'q', 'application_id', 'log_type', 'from', 'to', 'per_page', 'sort'
+        ], true)) {
+            $this->page = 1;
+        }
+    }
 
     public function gotoPage(int $p, int $lastPage): void
     {
@@ -65,7 +84,11 @@ class LogViewer extends Component
             ? $query->oldest('created_at')
             : $query->latest('created_at');
 
-        if ($this->application_id) $query->where('application_id', $this->application_id);
+        // ✅ Filter Application: pakai string kosong untuk "All"
+        if ($this->application_id !== '') {
+            $query->where('application_id', $this->application_id);
+        }
+
         if ($this->log_type !== '') $query->where('log_type', $this->log_type);
         if ($this->from) $query->whereDate('created_at', '>=', $this->from);
         if ($this->to) $query->whereDate('created_at', '<=', $this->to);
@@ -155,20 +178,24 @@ class LogViewer extends Component
                 ]);
             })(),
 
-            default => view('livewire.auditor.log-viewer.index', [
-                'logs' => $this->getFilteredLogs()[0],
-                'total' => $this->getFilteredLogs()[1],
-                'lastPage' => $this->getFilteredLogs()[2],
-                'applications' => Application::orderBy('name')->get(),
-                'logTypeOptions' => UnifiedLog::query()
-                    ->whereNotNull('log_type')
-                    ->where('log_type', '!=', '')
-                    ->distinct()
-                    ->orderBy('log_type')
-                    ->pluck('log_type'),
-                'page' => $this->page,
-                'per_page' => $this->per_page, // penting untuk nomor urut di table
-            ]),
+            default => (function () {
+                [$logs, $total, $lastPage] = $this->getFilteredLogs();
+
+                return view('livewire.auditor.log-viewer.index', [
+                    'logs' => $logs,
+                    'total' => $total,
+                    'lastPage' => $lastPage,
+                    'applications' => Application::orderBy('name')->get(),
+                    'logTypeOptions' => UnifiedLog::query()
+                        ->whereNotNull('log_type')
+                        ->where('log_type', '!=', '')
+                        ->distinct()
+                        ->orderBy('log_type')
+                        ->pluck('log_type'),
+                    'page' => $this->page,
+                    'per_page' => $this->per_page,
+                ]);
+            })(),
         };
     }
 }

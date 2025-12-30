@@ -36,18 +36,19 @@
                 <div class="lg:col-span-5">
                     <label class="text-xs font-semibold text-slate-600">Search</label>
                     <div class="relative">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <i
+                            class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" wire:model.live.debounce.300ms="q"
                             placeholder="ID / payload / nama aplikasi..."
-                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:border-slate-400 focus:ring-0" />
+                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:border-gray-500 focus:ring-0 focus:outline-none" />
                     </div>
                 </div>
 
-                {{-- App --}}
+                {{-- App (FIX: .number karena property ?int) --}}
                 <div class="lg:col-span-3">
                     <label class="text-xs font-semibold text-slate-600">Application</label>
                     <select wire:model.live="application_id"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
                         <option value="">All</option>
                         @foreach ($applications as $app)
                             <option value="{{ $app->id }}">{{ $app->name }}</option>
@@ -59,7 +60,7 @@
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">Log Type</label>
                     <select wire:model.live="log_type"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
                         <option value="">All</option>
                         @foreach ($logTypeOptions as $t)
                             <option value="{{ $t }}">{{ $t }}</option>
@@ -67,11 +68,11 @@
                     </select>
                 </div>
 
-                {{-- Per Page --}}
+                {{-- Per Page (FIX: .number karena property int) --}}
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">Per Page</label>
-                    <select wire:model.live="per_page"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                    <select wire:model.live.number="per_page"
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
                         <option value="10">10</option>
                         <option value="25">25</option>
                         <option value="50">50</option>
@@ -83,21 +84,21 @@
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">From</label>
                     <input type="date" wire:model.live="from"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 focus:border-gray-500 focus:ring-0 focus:outline-none">
                 </div>
 
                 {{-- To --}}
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">To</label>
                     <input type="date" wire:model.live="to"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 focus:border-gray-500 focus:ring-0 focus:outline-none">
                 </div>
 
                 {{-- Sort --}}
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">Sort</label>
                     <select wire:model.live="sort"
-                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-0">
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
                         <option value="newest">Newest</option>
                         <option value="oldest">Oldest</option>
                     </select>
@@ -140,30 +141,40 @@
 
                     <div class="grid grid-cols-12 hover:bg-slate-50 transition">
 
+                        {{-- No --}}
                         <div class="col-span-1 px-6 py-4">
                             <div class="font-bold text-slate-900">{{ $no }}</div>
                         </div>
 
+                        {{-- Application --}}
                         <div class="col-span-2 px-6 py-4 min-w-0">
-                            <div class="font-semibold text-slate-900 truncate">
+                            <div class="font-semibold text-slate-900 truncate"
+                                title="{{ $log->application->name ?? '-' }}">
                                 {{ $log->application->name ?? '-' }}
                             </div>
                         </div>
 
-                        <div class="col-span-2 px-6 py-4">
-                            <span class="inline-flex px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs">
+                        {{-- Type (wrap aman) --}}
+                        <div class="col-span-2 px-6 py-4 min-w-0">
+                            <span
+                                class="inline-block max-w-full px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs whitespace-normal break-all"
+                                title="{{ $log->log_type ?: '-' }}">
                                 {{ $log->log_type ?: '-' }}
                             </span>
                         </div>
 
+                        {{-- Payload (CLICKABLE seperti Super Admin) --}}
                         <div class="col-span-5 px-6 py-4 min-w-0">
-                            <div class="text-sm text-slate-600 truncate">
+                            <button type="button" wire:click="showDetail(@js($log->id))"
+                                class="w-full text-left text-xs font-mono text-slate-600 truncate hover:underline hover:text-slate-900 cursor-pointer"
+                                title="Klik untuk lihat detail">
                                 {{ $payloadPreview }}
-                            </div>
+                            </button>
                         </div>
 
+                        {{-- Aksi --}}
                         <div class="col-span-2 px-6 py-4">
-                            <button wire:click="showDetail(@js($log->id))"
+                            <button type="button" wire:click="showDetail(@js($log->id))"
                                 class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800 cursor-pointer">
                                 Detail
                             </button>
@@ -190,6 +201,7 @@
 
             <div class="border-t border-slate-200 p-4 sm:p-6">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
                     <div class="text-xs text-slate-500">
                         Page <span class="font-semibold text-slate-700">{{ $current }}</span>
                         of <span class="font-semibold text-slate-700">{{ $last }}</span>
@@ -197,10 +209,9 @@
                     </div>
 
                     <div class="flex items-center justify-between sm:justify-end gap-2">
-                        <button type="button"
-                            wire:click="prevPage"
-                            @disabled($current <= 1)
-                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+
+                        <button type="button" wire:click="prevPage" @disabled($current <= 1)
+                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                             <i class="fa-solid fa-chevron-left"></i>
                             Prev
                         </button>
@@ -218,12 +229,13 @@
 
                             @for ($p = $start; $p <= $end; $p++)
                                 @if ($p === $current)
-                                    <span class="h-10 w-10 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white text-sm">
+                                    <span
+                                        class="h-10 w-10 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white text-sm">
                                         {{ $p }}
                                     </span>
                                 @else
                                     <button wire:click="gotoPage({{ $p }}, {{ $last }})"
-                                        class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm">
+                                        class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm cursor-pointer">
                                         {{ $p }}
                                     </button>
                                 @endif
@@ -241,17 +253,19 @@
                             @endif
                         </div>
 
-                        <button type="button"
-                            wire:click="nextPage({{ $last }})"
+                        <button type="button" wire:click="nextPage({{ $last }})"
                             @disabled($current >= $last)
-                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                             Next
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>
+
                     </div>
+
                 </div>
             </div>
         @endif
+
     </div>
 
 </div>

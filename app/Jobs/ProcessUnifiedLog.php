@@ -2,72 +2,82 @@
 
 namespace App\Jobs;
 
-use App\Models\UnifiedLog;
-use App\Services\HashChainService;
-use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Foundation\Bus\Dispatchable;
+use App\Models\UnifiedLog;
+use App\Services\HashChainService;
 use Illuminate\Support\Facades\Log;
 
 class ProcessUnifiedLog implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 120;
+    public $timeout = 120; // 2 minutes
     public $tries = 3;
-    public $backoff = [60, 120, 300];
+    public $backoff = [60, 120, 300]; // Retry after 1, 2, 5 minutes
 
-    public function __construct(protected array $data) {}
+    protected array $data;
+
+    public function __construct(array $data)
+    {
+        $this->data = $data;
+    }
 
     public function handle(): void
     {
         try {
             $hashService = new HashChainService();
 
-            // ✅ pakai created_at yang FIX (dipakai untuk hash & disimpan)
-            $createdAt = now();
-
-            // ✅ prev_hash harus per application (biar chain tidak campur antar app)
+            //  prev hash per application_id
             $previousHash = $hashService->getPreviousHash($this->data['application_id']);
 
-            // ✅ data yang di-hash HARUS sama dengan yang nanti di-verify
+            //  created_at harus konsisten (masuk hash & disimpan)
+            $createdAt = now()->toISOString();
+
+            //  data yang dipakai untuk hashing harus sama dengan verifyChain()
             $dataForHash = [
-                'application_id' => $this->data['application_id'],
-                'log_type'       => $this->data['log_type'],
+                'application_id' => (string) $this->data['application_id'],
+                'log_type'       => (string) $this->data['log_type'],
                 'payload'        => $this->data['payload'],
                 'ip_address'     => $this->data['ip_address'] ?? null,
                 'user_agent'     => $this->data['user_agent'] ?? null,
-                'created_at'     => $createdAt->toISOString(),
+                'created_at'     => $createdAt,
             ];
 
             $hash = $hashService->generateHash($dataForHash, $previousHash);
 
+            //  save immutable log (created_at harus sama persis)
             UnifiedLog::create([
                 ...$this->data,
-                'hash' => $hash,
+                'hash'      => $hash,
                 'prev_hash' => $previousHash,
-                'created_at' => $createdAt, // ✅ simpan created_at sama persis
+                'created_at'=> $createdAt,
             ]);
 
-            Log::info('[WEBLOG] Log processed', [
+            Log::info('Log processed successfully', [
                 'application_id' => $this->data['application_id'],
-                'log_type' => $this->data['log_type'],
+                'log_type'       => $this->data['log_type'],
             ]);
 
-        } catch (\Throwable $e) {
-            Log::error('[WEBLOG] Failed to process log', [
+        } catch (\Exception $e) {
+            Log::error('Failed to process log', [
+                'data'  => $this->data,
                 'error' => $e->getMessage(),
             ]);
-            throw $e;
+
+            throw $e; // Untuk retry
         }
     }
 
     public function failed(\Throwable $exception): void
     {
-        Log::critical('[WEBLOG] ProcessUnifiedLog failed permanently', [
+        Log::critical('ProcessUnifiedLog job failed permanently', [
+            'data'  => $this->data,
             'error' => $exception->getMessage(),
+            'trace' => $exception->getTraceAsString(),
         ]);
     }
 }

@@ -1,9 +1,14 @@
 <div class="space-y-4">
     <div class="flex items-start justify-between gap-3">
-        <div>
+        <div class="min-w-0">
             <div class="text-xs text-slate-500">Auditor • Log Viewer</div>
-            <h1 class="text-xs font-bold text-slate-900">Log Detail #{{ $log->id }}</h1>
-            <p class="text-sm text-slate-600">
+
+            {{-- ID panjang aman --}}
+            <h1 class="text-xs font-bold text-slate-900 break-all">
+                Log Detail #<span class="font-mono">{{ $log->id }}</span>
+            </h1>
+
+            <p class="text-sm text-slate-600 break-words">
                 {{ $log->application->name ?? '-' }} •
                 <span class="font-semibold">{{ $log->log_type }}</span> •
                 {{ optional($log->created_at)->format('Y-m-d H:i:s') }}
@@ -11,7 +16,7 @@
         </div>
 
         <button type="button" wire:click="back"
-            class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer">
+            class="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer">
             <i class="fa-solid fa-arrow-left"></i> Back
         </button>
     </div>
@@ -19,24 +24,33 @@
     {{-- Meta --}}
     <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 min-w-0">
                 <div class="text-xs text-slate-500">Application</div>
-                <div class="font-semibold text-slate-900">{{ $log->application->name ?? '-' }}</div>
+                <div class="font-semibold text-slate-900 truncate"
+                    title="{{ $log->application->name ?? '-' }}">
+                    {{ $log->application->name ?? '-' }}
+                </div>
             </div>
 
-            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 min-w-0">
                 <div class="text-xs text-slate-500">Log Type (API)</div>
-                <div class="font-semibold text-slate-900">{{ $log->log_type ?? '-' }}</div>
+                <div class="font-semibold text-slate-900 break-all">
+                    {{ $log->log_type ?? '-' }}
+                </div>
             </div>
 
-            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 min-w-0">
                 <div class="text-xs text-slate-500">IP Address</div>
-                <div class="font-semibold text-slate-900">{{ $log->ip_address ?? '-' }}</div>
+                <div class="font-semibold text-slate-900 break-all">
+                    {{ $log->ip_address ?? '-' }}
+                </div>
             </div>
 
-            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 min-w-0">
                 <div class="text-xs text-slate-500">User Agent</div>
-                <div class="text-sm text-slate-900 break-words">{{ $log->user_agent ?? '-' }}</div>
+                <div class="text-sm text-slate-900 break-all whitespace-normal">
+                    {{ $log->user_agent ?? '-' }}
+                </div>
             </div>
         </div>
     </div>
@@ -47,16 +61,23 @@
             <div class="font-semibold text-slate-900 mb-3">Summary</div>
             <div class="flex flex-wrap gap-2">
                 @foreach ($summary as $k => $v)
-                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700">
-                        <span class="font-semibold">{{ $k }}:</span>
-                        <span class="max-w-[520px] truncate">{{ is_scalar($v) ? $v : json_encode($v) }}</span>
+                    @php
+                        $sv = is_scalar($v) ? (string) $v : json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    @endphp
+
+                    <span
+                        class="inline-flex min-w-0 items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700">
+                        <span class="font-semibold shrink-0">{{ $k }}:</span>
+                        <span class="min-w-0 max-w-[12rem] sm:max-w-[520px] truncate" title="{{ $sv }}">
+                            {{ $sv }}
+                        </span>
                     </span>
                 @endforeach
             </div>
         </div>
     @endif
 
-    {{-- Payload --}}
+    {{-- Payload (responsive & readable, seperti Super Admin) --}}
     <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div class="px-4 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
             <div class="font-semibold text-slate-900">Payload</div>
@@ -99,17 +120,19 @@
                         $assoc = $isArray ? $isAssoc($value) : false;
 
                         echo '<div class="rounded-xl border border-slate-200 bg-white overflow-hidden">';
-                        echo '<div class="px-3 py-2 flex items-start justify-between gap-3">';
+
+                        // header responsive: mobile stack biar aman untuk value panjang
+                        echo '<div class="px-3 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">';
                         echo '<div class="min-w-0">';
                         echo '<div class="text-xs text-slate-500">Key</div>';
-                        echo '<div class="font-semibold text-slate-900 break-words">' . e($key) . '</div>';
+                        echo '<div class="font-semibold text-slate-900 break-all">' . e($key) . '</div>';
                         echo '</div>';
 
-                        echo '<div class="min-w-0 text-right">';
+                        echo '<div class="min-w-0 sm:text-right">';
                         echo '<div class="text-xs text-slate-500">Value</div>';
 
                         if ($scalar !== null) {
-                            echo '<div class="text-sm text-slate-800 break-words max-w-[720px]">' . e($scalar) . '</div>';
+                            echo '<div class="text-sm text-slate-800 break-all whitespace-normal max-w-full sm:max-w-[720px]">' . e($scalar) . '</div>';
                         } elseif ($hasChildren) {
                             $label = $assoc ? 'Object' : 'List';
                             echo '<div class="text-xs text-slate-500">' . $label . ' • ' . count($value) . ' item(s)</div>';
@@ -136,18 +159,19 @@
             @if (isset($payload['_raw']))
                 <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                     Payload bukan JSON valid, tampilkan sebagai teks:
-                    <div class="mt-2 font-mono text-xs whitespace-pre-wrap">{{ $payload['_raw'] }}</div>
+                    <div class="mt-2 font-mono text-xs whitespace-pre-wrap break-all">{{ $payload['_raw'] }}</div>
                 </div>
             @else
                 @php $renderNode($payload); @endphp
             @endif
 
+            {{-- Raw JSON --}}
             <details class="mt-4 rounded-xl border border-slate-200 bg-white overflow-hidden">
                 <summary class="cursor-pointer px-4 sm:px-6 py-4 border-b border-slate-200 font-semibold text-slate-900">
                     Raw JSON (advanced)
                 </summary>
                 <div class="p-4 sm:p-6">
-                    <pre class="p-4 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto whitespace-pre-wrap">{{ json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+                    <pre class="p-4 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto whitespace-pre-wrap break-all">{{ json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
                 </div>
             </details>
         </div>

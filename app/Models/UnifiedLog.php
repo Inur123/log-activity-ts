@@ -13,7 +13,7 @@ class UnifiedLog extends Model
 
     const UPDATED_AT = null; // immutable
 
-    // ✅ UUID config
+    //  UUID config
     public $incrementing = false;
     protected $keyType = 'string';
 
