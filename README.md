@@ -1348,4 +1348,4 @@ curl -X POST http://localhost:8000/api/v1/logs \
 
 ### Getting Help
 
-Untuk pertanyaan atau issue lainnya, hubungi tim support Anda.
+Untuk pertanyaan atau issue lainnya, hubungi saya.
