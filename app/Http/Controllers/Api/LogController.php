@@ -22,7 +22,7 @@ class LogController extends Controller
             ], 401);
         }
 
-        //  Rate limit per application_id
+        // Rate limit per application_id (maks 1000/minute)
         $key = 'api:' . $application->id;
 
         if (RateLimiter::tooManyAttempts($key, 1000)) {
@@ -35,10 +35,10 @@ class LogController extends Controller
 
         RateLimiter::hit($key, 60);
 
-        //  normalize log_type to uppercase
+        // normalize log_type to uppercase
         $logType = strtoupper($request->input('log_type'));
 
-        //  validate basic request
+        // validate basic request
         $validator = Validator::make([
             'log_type' => $logType,
             'payload'  => $request->input('payload'),
@@ -48,6 +48,15 @@ class LogController extends Controller
         ]);
 
         if ($validator->fails()) {
+
+            // Simpan VALIDATION_FAILED (basic validation)
+            $this->dispatchValidationFailed(
+                application: $application,
+                originalLogType: $logType ?: 'UNKNOWN',
+                errors: $validator->errors()->toArray(),
+                originalPayload: (array) $request->input('payload', [])
+            );
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
@@ -55,13 +64,22 @@ class LogController extends Controller
             ], 422);
         }
 
-        //  validate payload rules by log_type
+        // validate payload rules by log_type
         $payloadRules = $this->payloadRulesFor($logType);
 
         if (! empty($payloadRules)) {
             $payloadValidator = Validator::make($request->input('payload', []), $payloadRules);
 
             if ($payloadValidator->fails()) {
+
+                // Simpan VALIDATION_FAILED (payload validation)
+                $this->dispatchValidationFailed(
+                    application: $application,
+                    originalLogType: $logType,
+                    errors: $payloadValidator->errors()->toArray(),
+                    originalPayload: (array) $request->input('payload', [])
+                );
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Payload validation failed',
@@ -71,10 +89,11 @@ class LogController extends Controller
         }
 
         try {
+            // valid request -> masuk ke log aslinya
             $logData = [
                 'application_id' => $application->id,
                 'log_type'       => $logType,
-                'payload'        => $request->payload,
+                'payload'        => $request->input('payload', []),
                 'ip_address'     => $request->ip(),
                 'user_agent'     => $request->userAgent(),
             ];
@@ -86,7 +105,6 @@ class LogController extends Controller
                 'message'   => 'Log received and queued for processing',
                 'queued_at' => now()->toDateTimeString(),
             ], 202);
-
         } catch (\Exception $e) {
             Log::error('Failed to queue log', [
                 'error' => $e->getMessage(),
@@ -123,22 +141,49 @@ class LogController extends Controller
     }
 
     /**
-     *  Enum Log Type list
+     * Log invalid request/payload sebagai VALIDATION_FAILED
      */
+    private function dispatchValidationFailed($application, string $originalLogType, array $errors, array $originalPayload): void
+    {
+        // Rate limit per error type supaya tidak spam
+        $rateKey = 'validation_failed:' . $application->id . ':' . md5($originalLogType . json_encode($errors));
+
+        if (RateLimiter::tooManyAttempts($rateKey, 30)) {
+            return;
+        }
+
+        RateLimiter::hit($rateKey, 60);
+
+        $validationLogData = [
+            'application_id' => $application->id,
+            'log_type'       => 'VALIDATION_FAILED',
+            'payload'        => [
+                'user_id' => $originalPayload['user_id'] ?? null,
+                'errors'  => $errors,
+                'ip'      => request()?->ip(),
+                'meta'    => [
+                    'original_log_type' => $originalLogType,
+                    'original_payload'  => $originalPayload,
+                ],
+            ],
+            'ip_address' => request()?->ip(),
+            'user_agent' => request()?->userAgent(),
+        ];
+
+        ProcessUnifiedLog::dispatch($validationLogData)->onQueue('logs');
+    }
+
     private function allowedLogTypes(): array
     {
         return [
-            // A. AUTHENTICATION
             'AUTH_LOGIN',
             'AUTH_LOGOUT',
             'AUTH_LOGIN_FAILED',
 
-            // B. ACCESS & ACTIVITY
             'ACCESS_ENDPOINT',
             'DOWNLOAD_DOCUMENT',
             'SEND_EXTERNAL',
 
-            // C. DATA & AUDIT TRAIL
             'DATA_CREATE',
             'DATA_UPDATE',
             'DATA_DELETE',
@@ -146,39 +191,34 @@ class LogController extends Controller
             'BULK_IMPORT',
             'BULK_EXPORT',
 
-            // D. SYSTEM & VALIDATION
             'SYSTEM_ERROR',
             'VALIDATION_FAILED',
 
-            // E. SECURITY & PERMISSION
             'SECURITY_VIOLATION',
             'PERMISSION_CHANGE',
         ];
     }
 
-    /**
-     *  Payload rules based on log_type fixed enums
-     */
     private function payloadRulesFor(string $logType): array
     {
         return match ($logType) {
 
-            // === A. AUTHENTICATION ===
+            // === AUTH ===
             'AUTH_LOGIN',
             'AUTH_LOGOUT',
             'AUTH_LOGIN_FAILED' => [
                 'user_id' => 'nullable|integer',
                 'email'   => 'required|email',
-                'ip'      => 'required|string',
+                'ip'      => 'nullable|string',
                 'device'  => 'nullable|string',
             ],
 
-            // === B. ACCESS & ACTIVITY ===
+            // === ACCESS ===
             'ACCESS_ENDPOINT' => [
                 'user_id'   => 'required|integer',
                 'endpoint'  => 'required|string',
                 'method'    => 'required|string|in:GET,POST,PUT,PATCH,DELETE',
-                'ip'        => 'required|string',
+                'ip'        => 'nullable|string',
                 'status'    => 'required|integer',
             ],
 
@@ -186,7 +226,7 @@ class LogController extends Controller
                 'user_id'        => 'required|integer',
                 'document_id'    => 'required',
                 'document_name'  => 'nullable|string',
-                'ip'             => 'required|string',
+                'ip'             => 'nullable|string',
             ],
 
             'SEND_EXTERNAL' => [
@@ -197,7 +237,7 @@ class LogController extends Controller
                 'meta'     => 'nullable|array',
             ],
 
-            // === C. DATA & AUDIT TRAIL ===
+            // === DATA ===
             'DATA_CREATE' => [
                 'user_id' => 'required|integer',
                 'data'    => 'required|array',
@@ -231,7 +271,7 @@ class LogController extends Controller
                 'file_name'   => 'nullable|string',
             ],
 
-            // === D. SYSTEM & VALIDATION ===
+            // === SYSTEM ===
             'SYSTEM_ERROR' => [
                 'message'   => 'required|string',
                 'code'      => 'nullable|string',
@@ -243,12 +283,13 @@ class LogController extends Controller
                 'user_id' => 'nullable|integer',
                 'errors'  => 'required|array',
                 'ip'      => 'nullable|string',
+                'meta'    => 'nullable|array',
             ],
 
-            // === E. SECURITY & PERMISSION ===
+            // === SECURITY ===
             'SECURITY_VIOLATION' => [
                 'user_id' => 'nullable|integer',
-                'ip'      => 'required|string',
+                'ip'      => 'nullable|string',
                 'reason'  => 'required|string',
                 'meta'    => 'nullable|array',
             ],

@@ -84,7 +84,7 @@ class LogViewer extends Component
             ? $query->oldest('created_at')
             : $query->latest('created_at');
 
-        // ✅ Filter Application: pakai string kosong untuk "All"
+        //  Filter Application: pakai string kosong untuk "All"
         if ($this->application_id !== '') {
             $query->where('application_id', $this->application_id);
         }

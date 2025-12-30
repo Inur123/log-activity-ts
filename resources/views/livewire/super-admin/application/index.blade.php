@@ -237,10 +237,9 @@
         @endif
     </div>
 
-    {{-- ✅ Confirm Delete Modal (harus di dalam root) --}}
-    {{-- ✅ Confirm Delete Modal (harus di dalam root) --}}
-<div
-    x-data="{
+
+    {{--  Confirm Delete Modal (harus di dalam root) --}}
+    <div x-data="{
         open: false,
         id: null,
         name: '',
@@ -276,70 +275,51 @@
                 this.loading = false;
             }
         }
-    }"
-    x-on:confirm-delete.window="show($event.detail)"
-    x-on:keydown.escape.window="open && close()"
-    x-on:keydown.enter.window.prevent="open && confirm()"
->
-    <div
-        x-show="open"
-        x-transition.opacity
-        class="fixed inset-0 z-[9998] bg-black/40"
-        @click="close()"
-        style="display:none;"
-    ></div>
+    }" x-on:confirm-delete.window="show($event.detail)"
+        x-on:keydown.escape.window="open && close()" x-on:keydown.enter.window.prevent="open && confirm()">
+        <div x-show="open" x-transition.opacity class="fixed inset-0 z-[9998] bg-black/40" @click="close()"
+            style="display:none;"></div>
 
-    <div
-        x-show="open"
-        x-transition:enter="transition ease-out duration-200"
-        x-transition:enter-start="opacity-0 translate-y-2"
-        x-transition:enter-end="opacity-100 translate-y-0"
-        x-transition:leave="transition ease-in duration-150"
-        x-transition:leave-start="opacity-100 translate-y-0"
-        x-transition:leave-end="opacity-0 translate-y-2"
-        class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-        style="display:none;"
-    >
-        <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden" @click.stop>
-            <div class="p-5 flex items-start gap-3">
-                <div class="h-10 w-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                </div>
+        <div x-show="open" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 translate-y-2"
+            class="fixed inset-0 z-[9999] flex items-center justify-center p-4" style="display:none;">
+            <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden"
+                @click.stop>
+                <div class="p-5 flex items-start gap-3">
+                    <div
+                        class="h-10 w-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
 
-                <div class="min-w-0 flex-1">
-                    <div class="text-lg font-bold text-slate-900">Hapus application?</div>
-                    <div class="mt-1 text-sm text-slate-600">
-                        Kamu yakin mau hapus
-                        <span class="font-semibold text-slate-900" x-text="name || 'application ini'"></span>?
-                        Tindakan ini tidak bisa dibatalkan.
+                    <div class="min-w-0 flex-1">
+                        <div class="text-lg font-bold text-slate-900">Hapus application?</div>
+                        <div class="mt-1 text-sm text-slate-600">
+                            Kamu yakin mau hapus
+                            <span class="font-semibold text-slate-900" x-text="name || 'application ini'"></span>?
+                            Tindakan ini tidak bisa dibatalkan.
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="px-5 pb-5 flex items-center justify-end gap-2">
-                <button
-                    type="button"
-                    class="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 cursor-pointer"
-                    @click="close()"
-                    :disabled="loading"
-                >
-                    Batal
-                </button>
+                <div class="px-5 pb-5 flex items-center justify-end gap-2">
+                    <button type="button"
+                        class="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 cursor-pointer"
+                        @click="close()" :disabled="loading">
+                        Batal
+                    </button>
 
-                <button
-                    x-ref="confirmBtn"
-                    type="button"
-                    class="h-10 px-4 rounded-xl bg-rose-600 text-white hover:bg-rose-700 inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-                    @click="confirm()"
-                    :disabled="loading"
-                >
-                    <i class="fa-solid fa-trash"></i>
-                    <span x-text="loading ? 'Menghapus...' : 'Ya, hapus'"></span>
-                </button>
+                    <button x-ref="confirmBtn" type="button"
+                        class="h-10 px-4 rounded-xl bg-rose-600 text-white hover:bg-rose-700 inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                        @click="confirm()" :disabled="loading">
+                        <i class="fa-solid fa-trash"></i>
+                        <span x-text="loading ? 'Menghapus...' : 'Ya, hapus'"></span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
 
 
