@@ -2,22 +2,23 @@
 
 namespace App\Jobs;
 
+use App\Models\UnifiedLog;
+use App\Services\HashChainService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Foundation\Bus\Dispatchable;
-use App\Models\UnifiedLog;
-use App\Services\HashChainService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ProcessUnifiedLog implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 120; // 2 minutes
+    public $timeout = 120;
     public $tries = 3;
-    public $backoff = [60, 120, 300]; // Retry after 1, 2, 5 minutes
+    public $backoff = [60, 120, 300];
 
     protected array $data;
 
@@ -28,48 +29,43 @@ class ProcessUnifiedLog implements ShouldQueue
 
     public function handle(): void
     {
-        try {
+        DB::transaction(function () {
+
             $hashService = new HashChainService();
 
-            //  prev hash per application_id
-            $previousHash = $hashService->getPreviousHash($this->data['application_id']);
+            $appId = (string) $this->data['application_id'];
 
-            //  created_at harus konsisten (masuk hash & disimpan)
-            $createdAt = now()->toISOString();
+            // 🔐 LOCK row terakhir per application
+            $lastLog = UnifiedLog::where('application_id', $appId)
+                ->orderByDesc('seq')
+                ->lockForUpdate()
+                ->first();
 
-            //  data yang dipakai untuk hashing harus sama dengan verifyChain()
-            $dataForHash = [
-                'application_id' => (string) $this->data['application_id'],
-                'log_type'       => (string) $this->data['log_type'],
-                'payload'        => $this->data['payload'],
-                'ip_address'     => $this->data['ip_address'] ?? null,
-                'user_agent'     => $this->data['user_agent'] ?? null,
-                'created_at'     => $createdAt,
-            ];
+            $nextSeq = $lastLog ? $lastLog->seq + 1 : 1;
+            $prevHash = $lastLog ? $lastLog->hash : str_repeat('0', 64);
 
-            $hash = $hashService->generateHash($dataForHash, $previousHash);
+            $payload = $this->data['payload'] ?? [];
+            $hashService->normalizeArray($payload);
 
-            //  save immutable log (created_at harus sama persis)
+            $hash = $hashService->generateHash(
+                applicationId: $appId,
+                seq: $nextSeq,
+                logType: $this->data['log_type'],
+                payload: $payload,
+                prevHash: $prevHash
+            );
+
             UnifiedLog::create([
-                ...$this->data,
-                'hash'      => $hash,
-                'prev_hash' => $previousHash,
-                'created_at'=> $createdAt,
+                'application_id' => $appId,
+                'seq' => $nextSeq,
+                'log_type' => strtoupper($this->data['log_type']),
+                'payload' => $payload,
+                'ip_address' => $this->data['ip_address'] ?? null,
+                'user_agent' => $this->data['user_agent'] ?? null,
+                'hash' => $hash,
+                'prev_hash' => $prevHash,
             ]);
-
-            Log::info('Log processed successfully', [
-                'application_id' => $this->data['application_id'],
-                'log_type'       => $this->data['log_type'],
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to process log', [
-                'data'  => $this->data,
-                'error' => $e->getMessage(),
-            ]);
-
-            throw $e; // Untuk retry
-        }
+        });
     }
 
     public function failed(\Throwable $exception): void
@@ -77,7 +73,6 @@ class ProcessUnifiedLog implements ShouldQueue
         Log::critical('ProcessUnifiedLog job failed permanently', [
             'data'  => $this->data,
             'error' => $exception->getMessage(),
-            'trace' => $exception->getTraceAsString(),
         ]);
     }
 }

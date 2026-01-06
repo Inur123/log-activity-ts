@@ -14,9 +14,11 @@ return new class extends Migration
             $table->foreignUuid('application_id')
                 ->constrained('applications')
                 ->cascadeOnDelete();
+            $table->unsignedBigInteger('seq'); //sequence number per application
 
             $table->string('log_type', 100)->index();
             $table->json('payload');
+
             $table->string('hash', 64)->index();
             $table->string('prev_hash', 64)->nullable();
 
@@ -25,8 +27,9 @@ return new class extends Migration
 
             $table->timestamp('created_at')->useCurrent();
 
+            $table->unique(['application_id', 'seq']);
+            $table->index(['application_id', 'seq']);
             $table->index(['application_id', 'created_at']);
-            $table->index('created_at');
         });
     }
 

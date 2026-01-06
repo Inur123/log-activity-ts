@@ -6,109 +6,216 @@ use App\Models\UnifiedLog;
 
 class HashChainService
 {
-    private function ksortRecursive(array &$array): void
+    /**
+     * ✅ normalize payload agar hashing konsisten
+     * - remove null / empty string
+     * - recursive sort (ksort)
+     */
+    public function normalizeArray(array &$array): void
     {
-        ksort($array);
-        foreach ($array as &$value) {
-            if (is_array($value)) {
-                $this->ksortRecursive($value);
+        foreach ($array as $k => $v) {
+            // remove null / empty string
+            if ($v === null || $v === '') {
+                unset($array[$k]);
+                continue;
+            }
+
+            if (is_array($v)) {
+                $this->normalizeArray($v);
+
+                // jika kosong setelah normalize, hapus
+                if ($v === []) {
+                    unset($array[$k]);
+                    continue;
+                }
+
+                $array[$k] = $v;
             }
         }
-    }
 
-    public function generateHash(array $data, ?string $previousHash = null): string
-    {
-        //  pastikan urutan data konsisten
-        $this->ksortRecursive($data);
-
-        $payload = json_encode(
-            $data,
-            JSON_UNESCAPED_SLASHES |
-            JSON_UNESCAPED_UNICODE |
-            JSON_PRESERVE_ZERO_FRACTION
-        ) . ($previousHash ?? '');
-
-        return hash('sha256', $payload);
+        ksort($array);
     }
 
     /**
-     *  prev hash per application_id
+     * ✅ generate hash (HMAC SHA256)
      */
-    public function getPreviousHash(?string $applicationId = null): ?string
-    {
-        $q = UnifiedLog::query()
-            ->latest('created_at')
-            ->latest('id'); //  deterministic kalau created_at sama
+    public function generateHash(
+        string $applicationId,
+        int $seq,
+        string $logType,
+        array $payload,
+        string $prevHash
+    ): string {
 
-        if ($applicationId) {
-            $q->where('application_id', $applicationId);
-        }
+        $this->normalizeArray($payload);
 
-        return $q->value('hash');
-    }
-
-    /**
-     *  verifikasi chain (kalau ada yang edit manual DB -> ketahuan)
-     */
-    public function verifyChain(?string $applicationId = null): array
-    {
-        $q = UnifiedLog::query()
-            ->orderBy('created_at', 'asc')
-            ->orderBy('id', 'asc'); //  deterministic
-
-        if ($applicationId) {
-            $q->where('application_id', $applicationId);
-        }
-
-        $logs = $q->get([
-            'id','application_id','log_type','payload','hash','prev_hash',
-            'ip_address','user_agent','created_at'
+        $raw = implode('|', [
+            $applicationId,
+            $seq,
+            strtoupper($logType),
+            json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $prevHash,
         ]);
 
+        $secret = config('app.log_hash_key');
+
+        return hash_hmac('sha256', $raw, $secret);
+    }
+
+    /**
+     * ✅ Verify full chain per application
+     *
+     * deteksi:
+     * - deleted row (seq gap)
+     * - prev_hash mismatch
+     * - hash mismatch (payload diubah)
+     *
+     * ✅ tambahan:
+     * - tampilkan UUID log_id
+     * - tampilkan created_at supaya mudah dicari
+     */
+    public function verifyChainByApplication(string $applicationId): array
+    {
+        $logs = UnifiedLog::where('application_id', $applicationId)
+            ->orderBy('seq')
+            ->get([
+                'id',
+                'seq',
+                'log_type',
+                'payload',
+                'hash',
+                'prev_hash',
+                'created_at',
+            ]);
+
         if ($logs->isEmpty()) {
-            return ['valid' => true, 'message' => 'No logs to verify'];
+            return [
+                'valid' => true,
+                'message' => 'No logs to verify',
+                'errors' => [],
+                'total_checked' => 0,
+            ];
         }
 
         $errors = [];
+        $prev = str_repeat('0', 64);
+        $expectedSeq = 1;
 
-        foreach ($logs as $i => $log) {
-            $expectedPrev = $i === 0 ? null : $logs[$i - 1]->hash;
+        foreach ($logs as $log) {
 
-            if ($log->prev_hash !== $expectedPrev) {
+            $prevHash = $log->prev_hash ?: str_repeat('0', 64);
+
+            // ✅ detect seq gap (row delete)
+            if ((int)$log->seq !== $expectedSeq) {
                 $errors[] = [
-                    'log_id'    => (string) $log->id,
-                    'type'      => 'prev_hash_mismatch',
-                    'expected'  => $expectedPrev,
-                    'found'     => $log->prev_hash,
+                    'seq' => (int)$log->seq,
+                    'type' => 'seq_gap_or_delete_detected',
+                    'missing_from' => $expectedSeq,
+                    'missing_to' => ((int)$log->seq - 1),
+
+                    'log_id' => (string)$log->id,
+                    'log_type' => (string)$log->log_type,
+                    'created_at' => optional($log->created_at)->format('Y-m-d H:i:s'),
+                ];
+
+                $expectedSeq = (int)$log->seq;
+            }
+
+            // ✅ prev_hash mismatch
+            if ($prevHash !== $prev) {
+                $errors[] = [
+                    'seq' => (int)$log->seq,
+                    'type' => 'prev_hash_mismatch',
+                    'expected' => $prev,
+                    'found' => $prevHash,
+
+                    'log_id' => (string)$log->id,
+                    'log_type' => (string)$log->log_type,
+                    'created_at' => optional($log->created_at)->format('Y-m-d H:i:s'),
                 ];
             }
 
-            $dataForHash = [
-                'application_id' => (string) $log->application_id,
-                'log_type'       => (string) $log->log_type,
-                'payload'        => $log->payload,
-                'ip_address'     => $log->ip_address,
-                'user_agent'     => $log->user_agent,
-                'created_at'     => optional($log->created_at)->toISOString(), //  harus sama seperti saat insert
-            ];
+            // ✅ recompute hash
+            $payload = $log->payload ?? [];
+            $this->normalizeArray($payload);
 
-            $recomputed = $this->generateHash($dataForHash, $log->prev_hash);
+            $calc = $this->generateHash(
+                $applicationId,
+                (int)$log->seq,
+                (string)$log->log_type,
+                $payload,
+                (string)$prevHash
+            );
 
-            if (!hash_equals($log->hash, $recomputed)) {
+            if (!hash_equals($calc, $log->hash)) {
                 $errors[] = [
-                    'log_id'    => (string) $log->id,
-                    'type'      => 'hash_mismatch',
-                    'expected'  => $recomputed,
-                    'found'     => $log->hash,
+                    'seq' => (int)$log->seq,
+                    'type' => 'hash_mismatch',
+                    'expected' => $calc,
+                    'found' => $log->hash,
+
+                    'log_id' => (string)$log->id,
+                    'log_type' => (string)$log->log_type,
+                    'created_at' => optional($log->created_at)->format('Y-m-d H:i:s'),
+
+                    'payload_preview' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 ];
             }
+
+            $prev = $log->hash;
+            $expectedSeq++;
         }
 
+
         return [
-            'valid'          => empty($errors),
-            'message'        => empty($errors) ? 'Hash chain valid' : 'Hash chain broken',
-            'errors'         => $errors,
-            'total_checked'  => $logs->count(),
+            'valid' => empty($errors),
+            'message' => empty($errors) ? 'Hash chain valid' : 'Hash chain broken',
+            'errors' => $errors,
+            'total_checked' => $logs->count(),
+
+            // ✅ info broken pertama supaya gampang highlight
+            'broken_at_seq' => !empty($errors) ? ($errors[0]['seq'] ?? null) : null,
+            'broken_log_id' => !empty($errors) ? ($errors[0]['log_id'] ?? null) : null,
+        ];
+    }
+
+    /**
+     * ✅ Verify single log security
+     */
+    public function verifySingleLog(UnifiedLog $log): array
+    {
+        $prevLog = UnifiedLog::where('application_id', $log->application_id)
+            ->where('seq', $log->seq - 1)
+            ->first();
+
+        $expectedPrevHash = $prevLog ? $prevLog->hash : str_repeat('0', 64);
+
+        $payload = $log->payload ?? [];
+        $this->normalizeArray($payload);
+
+        $calc = $this->generateHash(
+            (string)$log->application_id,
+            (int)$log->seq,
+            (string)$log->log_type,
+            $payload,
+            (string)$log->prev_hash
+        );
+
+        return [
+            'valid' => ($log->prev_hash === $expectedPrevHash) && hash_equals($calc, $log->hash),
+
+            'prev_ok' => ($log->prev_hash === $expectedPrevHash),
+            'hash_ok' => hash_equals($calc, $log->hash),
+
+            // ✅ tambahan supaya gampang debug
+            'log_id' => (string)$log->id,
+            'seq' => (int)$log->seq,
+            'log_type' => (string)$log->log_type,
+            'created_at' => optional($log->created_at)->format('Y-m-d H:i:s'),
+
+            'expected_prev_hash' => $expectedPrevHash,
+            'recomputed_hash' => $calc,
+            'stored_hash' => $log->hash,
         ];
     }
 }

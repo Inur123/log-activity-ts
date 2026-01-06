@@ -19,16 +19,117 @@
             class="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer">
             <i class="fa-solid fa-arrow-left"></i> Back
         </button>
-
     </div>
+
+    {{-- ✅ SECURITY STATUS BLOCK --}}
+    @if (isset($logSecurityStatus))
+        <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+            <div class="flex items-center gap-3">
+                <div class="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <div class="font-semibold text-slate-900">Security Status</div>
+                    <div class="text-xs text-slate-500">Validasi hash log ini</div>
+                </div>
+            </div>
+
+            {{-- Status --}}
+            <div class="mt-4">
+                @if (($logSecurityStatus['valid'] ?? false) === true)
+                    <div
+                        class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm flex items-start gap-2">
+                        <i class="fa-solid fa-check mt-0.5"></i>
+                        <div>Log aman (hash & prev_hash valid)</div>
+                    </div>
+                @else
+                    <div
+                        class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-sm flex items-start gap-2">
+                        <i class="fa-solid fa-xmark mt-0.5"></i>
+                        <div>Log tidak valid! Data kemungkinan sudah diubah / rusak</div>
+                    </div>
+                @endif
+            </div>
+
+            {{-- Detail info --}}
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-xs text-slate-500">Log UUID</div>
+                    <div class="font-mono text-xs text-slate-900 break-all">
+                        {{ $logSecurityStatus['log_id'] ?? '-' }}
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-xs text-slate-500">SEQ</div>
+                    <div class="font-bold text-slate-900">
+                        {{ $logSecurityStatus['seq'] ?? '-' }}
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-xs text-slate-500">Prev Hash Check</div>
+                    <div class="text-sm font-semibold flex items-center gap-2">
+                        @if (($logSecurityStatus['prev_ok'] ?? false) === true)
+                            <i class="fa-solid fa-check text-emerald-600"></i>
+                            <span class="text-emerald-700">OK</span>
+                        @else
+                            <i class="fa-solid fa-xmark text-rose-600"></i>
+                            <span class="text-rose-700">MISMATCH</span>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-xs text-slate-500">Hash Check</div>
+                    <div class="text-sm font-semibold flex items-center gap-2">
+                        @if (($logSecurityStatus['hash_ok'] ?? false) === true)
+                            <i class="fa-solid fa-check text-emerald-600"></i>
+                            <span class="text-emerald-700">OK</span>
+                        @else
+                            <i class="fa-solid fa-xmark text-rose-600"></i>
+                            <span class="text-rose-700">MISMATCH</span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            {{-- Hash Detail --}}
+            <details class="mt-4 rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <summary
+                    class="cursor-pointer px-4 sm:px-6 py-4 border-b border-slate-200 font-semibold text-slate-900">
+                    Detail Hash (advanced)
+                </summary>
+
+                <div class="p-4 sm:p-6 space-y-3">
+
+                    <div>
+                        <div class="text-xs text-slate-500 mb-1">Expected Prev Hash</div>
+                        <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $logSecurityStatus['expected_prev_hash'] ?? '-' }}</pre>
+                    </div>
+
+                    <div>
+                        <div class="text-xs text-slate-500 mb-1">Stored Hash</div>
+                        <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $logSecurityStatus['stored_hash'] ?? '-' }}</pre>
+                    </div>
+
+                    <div>
+                        <div class="text-xs text-slate-500 mb-1">Recomputed Hash</div>
+                        <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $logSecurityStatus['recomputed_hash'] ?? '-' }}</pre>
+                    </div>
+
+                </div>
+            </details>
+        </div>
+    @endif
+
 
     {{-- Meta --}}
     <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 min-w-0">
                 <div class="text-xs text-slate-500">Application</div>
-                <div class="font-semibold text-slate-900 truncate"
-                    title="{{ $log->application->name ?? '-' }}">
+                <div class="font-semibold text-slate-900 truncate" title="{{ $log->application->name ?? '-' }}">
                     {{ $log->application->name ?? '-' }}
                 </div>
             </div>
@@ -49,7 +150,6 @@
 
             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 min-w-0">
                 <div class="text-xs text-slate-500">User Agent</div>
-                {{-- user-agent sering panjang & tanpa spasi --}}
                 <div class="text-sm text-slate-900 break-all whitespace-normal">
                     {{ $log->user_agent ?? '-' }}
                 </div>
@@ -64,7 +164,9 @@
             <div class="flex flex-wrap gap-2">
                 @foreach ($summary as $k => $v)
                     @php
-                        $sv = is_scalar($v) ? (string) $v : json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                        $sv = is_scalar($v)
+                            ? (string) $v
+                            : json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                     @endphp
 
                     <span
@@ -79,7 +181,7 @@
         </div>
     @endif
 
-    {{-- Payload (readable, no extra blade file) --}}
+    {{-- Payload --}}
     <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div class="px-4 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
             <div class="font-semibold text-slate-900">Payload</div>
@@ -120,10 +222,7 @@
                         'api_key',
                         'apikey',
                     ]);
-                    if ($sensitive && $scalar !== null) {
-                        return '••••••••';
-                    }
-                    return $scalar;
+                    return $sensitive && $scalar !== null ? '••••••••' : $scalar;
                 };
 
                 $renderNode = function ($data, $level = 0) use (
@@ -137,18 +236,13 @@
                     }
 
                     echo '<div class="space-y-2">';
-
                     foreach ($data as $key => $value) {
-                        $scalar = $renderScalar($value);
-                        $scalar = $maskIfSensitive((string) $key, $scalar);
-
+                        $scalar = $maskIfSensitive((string) $key, $renderScalar($value));
                         $isArray = is_array($value);
                         $hasChildren = $isArray && count($value) > 0;
                         $assoc = $isArray ? $isAssoc($value) : false;
 
                         echo '<div class="rounded-xl border border-slate-200 bg-white overflow-hidden">';
-
-                        // header: mobile jadi stack biar aman untuk value panjang
                         echo '<div class="px-3 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">';
                         echo '<div class="min-w-0">';
                         echo '<div class="text-xs text-slate-500">Key</div>';
@@ -159,7 +253,6 @@
                         echo '<div class="text-xs text-slate-500">Value</div>';
 
                         if ($scalar !== null) {
-                            // break-all supaya UUID/token/URL wrap
                             echo '<div class="text-sm text-slate-800 break-all whitespace-normal max-w-full sm:max-w-[720px]">' .
                                 e($scalar) .
                                 '</div>';
@@ -184,7 +277,6 @@
 
                         echo '</div>';
                     }
-
                     echo '</div>';
                 };
             @endphp
@@ -198,7 +290,7 @@
                 @php $renderNode($payload); @endphp
             @endif
 
-            {{-- Optional: Raw JSON untuk debugging --}}
+            {{-- Raw JSON --}}
             <details class="mt-4 rounded-xl border border-slate-200 bg-white overflow-hidden">
                 <summary
                     class="cursor-pointer px-4 sm:px-6 py-4 border-b border-slate-200 font-semibold text-slate-900">
