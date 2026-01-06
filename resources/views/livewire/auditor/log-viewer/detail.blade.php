@@ -21,13 +21,13 @@
         </button>
     </div>
 
+
     {{-- Meta --}}
     <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 min-w-0">
                 <div class="text-xs text-slate-500">Application</div>
-                <div class="font-semibold text-slate-900 truncate"
-                    title="{{ $log->application->name ?? '-' }}">
+                <div class="font-semibold text-slate-900 truncate" title="{{ $log->application->name ?? '-' }}">
                     {{ $log->application->name ?? '-' }}
                 </div>
             </div>
@@ -54,6 +54,101 @@
             </div>
         </div>
     </div>
+    @if (isset($logSecurityStatus))
+        <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+            <div class="flex items-center gap-3">
+                <div class="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <div class="font-semibold text-slate-900">Security Status</div>
+                    <div class="text-xs text-slate-500">Validasi hash log ini</div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                @if (($logSecurityStatus['valid'] ?? false) === true)
+                    <div
+                        class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Log aman (hash & prev_hash valid)</span>
+                    </div>
+                @else
+                    <div
+                        class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-xmark"></i>
+                        <span>Log tidak valid! Data kemungkinan sudah diubah / rusak</span>
+                    </div>
+                @endif
+            </div>
+
+            {{-- Detail info --}}
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-xs text-slate-500">Log UUID</div>
+                    <div class="font-mono text-xs text-slate-900 break-all">{{ $logSecurityStatus['log_id'] ?? '-' }}
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-xs text-slate-500">SEQ</div>
+                    <div class="font-bold text-slate-900">{{ $logSecurityStatus['seq'] ?? '-' }}</div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-xs text-slate-500">Prev Hash Check</div>
+                    <div class="text-sm font-semibold flex items-center gap-2">
+                        @if (($logSecurityStatus['prev_ok'] ?? false) === true)
+                            <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                            OK
+                        @else
+                            <i class="fa-solid fa-xmark text-rose-600"></i>
+                            MISMATCH
+                        @endif
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-xs text-slate-500">Hash Check</div>
+                    <div class="text-sm font-semibold flex items-center gap-2">
+                        @if (($logSecurityStatus['hash_ok'] ?? false) === true)
+                            <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                            OK
+                        @else
+                            <i class="fa-solid fa-xmark text-rose-600"></i>
+                            MISMATCH
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            {{-- Hash Detail --}}
+            <details class="mt-4 rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <summary
+                    class="cursor-pointer px-4 sm:px-6 py-4 border-b border-slate-200 font-semibold text-slate-900">
+                    Detail Hash (advanced)
+                </summary>
+
+                <div class="p-4 sm:p-6 space-y-3">
+                    <div>
+                        <div class="text-xs text-slate-500 mb-1">Expected Prev Hash</div>
+                        <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $logSecurityStatus['expected_prev_hash'] ?? '-' }}</pre>
+                    </div>
+
+                    <div>
+                        <div class="text-xs text-slate-500 mb-1">Stored Hash</div>
+                        <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $logSecurityStatus['stored_hash'] ?? '-' }}</pre>
+                    </div>
+
+                    <div>
+                        <div class="text-xs text-slate-500 mb-1">Recomputed Hash</div>
+                        <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $logSecurityStatus['recomputed_hash'] ?? '-' }}</pre>
+                    </div>
+                </div>
+            </details>
+        </div>
+    @endif
+
 
     {{-- Summary chips --}}
     @if (!empty($summary))
@@ -62,7 +157,9 @@
             <div class="flex flex-wrap gap-2">
                 @foreach ($summary as $k => $v)
                     @php
-                        $sv = is_scalar($v) ? (string) $v : json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                        $sv = is_scalar($v)
+                            ? (string) $v
+                            : json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                     @endphp
 
                     <span
@@ -87,28 +184,49 @@
         <div class="p-4 sm:p-6">
             @php
                 $isAssoc = function (array $arr) {
-                    if ($arr === []) return false;
+                    if ($arr === []) {
+                        return false;
+                    }
                     return array_keys($arr) !== range(0, count($arr) - 1);
                 };
 
                 $renderScalar = function ($value) {
-                    if (is_bool($value)) return $value ? 'true' : 'false';
-                    if ($value === null) return 'null';
-                    if (is_scalar($value)) return (string) $value;
+                    if (is_bool($value)) {
+                        return $value ? 'true' : 'false';
+                    }
+                    if ($value === null) {
+                        return 'null';
+                    }
+                    if (is_scalar($value)) {
+                        return (string) $value;
+                    }
                     return null;
                 };
 
                 $maskIfSensitive = function (string $key, ?string $scalar) {
                     $k = strtolower($key);
                     $sensitive = in_array($k, [
-                        'password','token','access_token','refresh_token',
-                        'authorization','secret','api_key','apikey',
+                        'password',
+                        'token',
+                        'access_token',
+                        'refresh_token',
+                        'authorization',
+                        'secret',
+                        'api_key',
+                        'apikey',
                     ]);
-                    return ($sensitive && $scalar !== null) ? '••••••••' : $scalar;
+                    return $sensitive && $scalar !== null ? '••••••••' : $scalar;
                 };
 
-                $renderNode = function ($data, $level = 0) use (&$renderNode, $isAssoc, $renderScalar, $maskIfSensitive) {
-                    if (!is_array($data)) $data = ['_value' => $data];
+                $renderNode = function ($data, $level = 0) use (
+                    &$renderNode,
+                    $isAssoc,
+                    $renderScalar,
+                    $maskIfSensitive,
+                ) {
+                    if (!is_array($data)) {
+                        $data = ['_value' => $data];
+                    }
 
                     echo '<div class="space-y-2">';
 
@@ -132,10 +250,16 @@
                         echo '<div class="text-xs text-slate-500">Value</div>';
 
                         if ($scalar !== null) {
-                            echo '<div class="text-sm text-slate-800 break-all whitespace-normal max-w-full sm:max-w-[720px]">' . e($scalar) . '</div>';
+                            echo '<div class="text-sm text-slate-800 break-all whitespace-normal max-w-full sm:max-w-[720px]">' .
+                                e($scalar) .
+                                '</div>';
                         } elseif ($hasChildren) {
                             $label = $assoc ? 'Object' : 'List';
-                            echo '<div class="text-xs text-slate-500">' . $label . ' • ' . count($value) . ' item(s)</div>';
+                            echo '<div class="text-xs text-slate-500">' .
+                                $label .
+                                ' • ' .
+                                count($value) .
+                                ' item(s)</div>';
                         } else {
                             echo '<div class="text-sm text-slate-800">-</div>';
                         }
@@ -167,7 +291,8 @@
 
             {{-- Raw JSON --}}
             <details class="mt-4 rounded-xl border border-slate-200 bg-white overflow-hidden">
-                <summary class="cursor-pointer px-4 sm:px-6 py-4 border-b border-slate-200 font-semibold text-slate-900">
+                <summary
+                    class="cursor-pointer px-4 sm:px-6 py-4 border-b border-slate-200 font-semibold text-slate-900">
                     Raw JSON (advanced)
                 </summary>
                 <div class="p-4 sm:p-6">

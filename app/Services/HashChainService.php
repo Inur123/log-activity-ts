@@ -7,7 +7,7 @@ use App\Models\UnifiedLog;
 class HashChainService
 {
     /**
-     * ✅ normalize payload agar hashing konsisten
+     *  normalize payload agar hashing konsisten
      * - remove null / empty string
      * - recursive sort (ksort)
      */
@@ -37,7 +37,7 @@ class HashChainService
     }
 
     /**
-     * ✅ generate hash (HMAC SHA256)
+     *  generate hash (HMAC SHA256)
      */
     public function generateHash(
         string $applicationId,
@@ -63,14 +63,14 @@ class HashChainService
     }
 
     /**
-     * ✅ Verify full chain per application
+     *  Verify full chain per application
      *
      * deteksi:
      * - deleted row (seq gap)
      * - prev_hash mismatch
      * - hash mismatch (payload diubah)
      *
-     * ✅ tambahan:
+     *  tambahan:
      * - tampilkan UUID log_id
      * - tampilkan created_at supaya mudah dicari
      */
@@ -105,7 +105,7 @@ class HashChainService
 
             $prevHash = $log->prev_hash ?: str_repeat('0', 64);
 
-            // ✅ detect seq gap (row delete)
+            //  detect seq gap (row delete)
             if ((int)$log->seq !== $expectedSeq) {
                 $errors[] = [
                     'seq' => (int)$log->seq,
@@ -121,7 +121,7 @@ class HashChainService
                 $expectedSeq = (int)$log->seq;
             }
 
-            // ✅ prev_hash mismatch
+            //  prev_hash mismatch
             if ($prevHash !== $prev) {
                 $errors[] = [
                     'seq' => (int)$log->seq,
@@ -135,7 +135,7 @@ class HashChainService
                 ];
             }
 
-            // ✅ recompute hash
+            //  recompute hash
             $payload = $log->payload ?? [];
             $this->normalizeArray($payload);
 
@@ -173,14 +173,14 @@ class HashChainService
             'errors' => $errors,
             'total_checked' => $logs->count(),
 
-            // ✅ info broken pertama supaya gampang highlight
+            //  info broken pertama supaya gampang highlight
             'broken_at_seq' => !empty($errors) ? ($errors[0]['seq'] ?? null) : null,
             'broken_log_id' => !empty($errors) ? ($errors[0]['log_id'] ?? null) : null,
         ];
     }
 
     /**
-     * ✅ Verify single log security
+     *  Verify single log security
      */
     public function verifySingleLog(UnifiedLog $log): array
     {
@@ -207,7 +207,7 @@ class HashChainService
             'prev_ok' => ($log->prev_hash === $expectedPrevHash),
             'hash_ok' => hash_equals($calc, $log->hash),
 
-            // ✅ tambahan supaya gampang debug
+            //  tambahan supaya gampang debug
             'log_id' => (string)$log->id,
             'seq' => (int)$log->seq,
             'log_type' => (string)$log->log_type,

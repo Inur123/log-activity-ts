@@ -35,7 +35,7 @@ class LogViewer extends Component
 
     public int $page = 1;
 
-    // ✅ SECURITY STATUS
+    //  SECURITY STATUS
     public ?array $chainStatus = null;
     public ?array $logSecurityStatus = null;
     public bool $verifying = false;
@@ -46,7 +46,13 @@ class LogViewer extends Component
     public function updated($name, $value): void
     {
         if (in_array($name, [
-            'q', 'application_id', 'log_type', 'from', 'to', 'per_page', 'sort'
+            'q',
+            'application_id',
+            'log_type',
+            'from',
+            'to',
+            'per_page',
+            'sort'
         ], true)) {
             $this->page = 1;
         }
@@ -68,7 +74,7 @@ class LogViewer extends Component
     }
 
     /**
-     * ✅ Verify Chain per Application
+     *  Verify Chain per Application
      */
     public function verifySelectedApplicationChain(): void
     {
@@ -102,7 +108,7 @@ class LogViewer extends Component
     }
 
     /**
-     * ✅ Show Detail + Verify log security
+     *  Show Detail + Verify log security
      */
     public function showDetail(string $id): void
     {
@@ -130,9 +136,9 @@ class LogViewer extends Component
         $this->logSecurityStatus = null;
     }
     public function clearChainStatus(): void
-{
-    $this->chainStatus = null;
-}
+    {
+        $this->chainStatus = null;
+    }
 
     private function buildQuery()
     {
@@ -142,7 +148,7 @@ class LogViewer extends Component
             ? $query->oldest('created_at')
             : $query->latest('created_at');
 
-        // ✅ Filter Application
+        //  Filter Application
         if ($this->application_id !== '') {
             $query->where('application_id', $this->application_id);
         }
@@ -157,7 +163,9 @@ class LogViewer extends Component
             $query->where(function ($sub) use ($q) {
                 $sub->orWhere('id', $q)
                     ->orWhereRaw("CAST(payload AS CHAR) LIKE ?", ["%$q%"])
-                    ->orWhereHas('application', fn($app) =>
+                    ->orWhereHas(
+                        'application',
+                        fn($app) =>
                         $app->where('name', 'like', "%$q%")
                     );
             });

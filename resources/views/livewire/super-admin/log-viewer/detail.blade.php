@@ -21,7 +21,7 @@
         </button>
     </div>
 
-    {{-- ✅ SECURITY STATUS BLOCK --}}
+    {{--  SECURITY STATUS BLOCK --}}
     @if (isset($logSecurityStatus))
         <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
             <div class="flex items-center gap-3">

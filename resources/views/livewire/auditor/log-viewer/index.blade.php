@@ -44,7 +44,7 @@
                     </div>
                 </div>
 
-                {{-- App (FIX: .number karena property ?int) --}}
+                {{-- App --}}
                 <div class="lg:col-span-3">
                     <label class="text-xs font-semibold text-slate-600">Application</label>
                     <select wire:model.live="application_id"
@@ -68,7 +68,7 @@
                     </select>
                 </div>
 
-                {{-- Per Page (FIX: .number karena property int) --}}
+                {{-- Per Page --}}
                 <div class="lg:col-span-2">
                     <label class="text-xs font-semibold text-slate-600">Per Page</label>
                     <select wire:model.live.number="per_page"
@@ -115,10 +115,170 @@
         </div>
     </div>
 
+    {{--  SECURITY CHECK --}}
+    <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <div class="font-semibold text-slate-900">Security Check</div>
+                    <div class="text-xs text-slate-500">Verifikasi hash chain untuk Application yang dipilih</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+                {{-- Verify --}}
+                <button type="button" wire:click="verifySelectedApplicationChain"
+                    class="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-900 text-white text-sm hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    @disabled($application_id === '' || $verifying)>
+                    @if ($verifying)
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span>Verifying...</span>
+                    @else
+                        <i class="fa-solid fa-shield-check"></i>
+                        <span>Verify Now</span>
+                    @endif
+                </button>
+
+                {{-- Clear --}}
+                <button type="button" wire:click="clearChainStatus"
+                    class="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    @disabled(!$chainStatus)>
+                    <i class="fa-solid fa-xmark"></i>
+                    <span>Clear</span>
+                </button>
+            </div>
+        </div>
+
+        @if ($application_id === '')
+            <div class="mt-3 text-xs text-slate-500 flex items-center gap-2">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>Pilih Application terlebih dahulu untuk melakukan verifikasi hash chain.</span>
+            </div>
+        @endif
+
+        {{-- Summary result --}}
+        @if ($chainStatus)
+            <div class="mt-4">
+                @if ($chainStatus['valid'])
+                    <div
+                        class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>{{ $chainStatus['message'] }} • Checked {{ $chainStatus['total_checked'] }}</span>
+                    </div>
+                @else
+                    <div
+                        class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>{{ $chainStatus['message'] }}</span>
+                    </div>
+                @endif
+            </div>
+        @endif
+
+        {{-- Error details --}}
+        @if (!empty($chainStatus['errors']))
+            <details class="mt-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <summary
+                    class="cursor-pointer px-4 sm:px-6 py-4 flex items-center justify-between gap-3 font-semibold text-slate-900 hover:bg-slate-50">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                        <span>Lihat detail error ({{ count($chainStatus['errors']) }})</span>
+                    </div>
+
+                    <i class="fa-solid fa-chevron-down text-slate-500"></i>
+                </summary>
+
+                <div class="p-4 sm:p-6 space-y-4 bg-slate-50">
+                    @foreach ($chainStatus['errors'] as $err)
+                        <div class="rounded-xl border border-rose-200 bg-white p-4 space-y-3">
+
+                            {{-- Header --}}
+                            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                                        <i class="fa-solid fa-xmark text-rose-600"></i>
+                                        <span>{{ strtoupper(str_replace('_', ' ', $err['type'] ?? 'ERROR')) }}</span>
+                                    </div>
+
+                                    <div class="text-xs text-slate-500 mt-1">
+                                        Log UUID:
+                                        <span
+                                            class="font-mono break-all text-slate-700">{{ $err['log_id'] ?? '-' }}</span>
+                                    </div>
+                                </div>
+
+                                <span
+                                    class="px-2 py-1 rounded-lg bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700 w-fit">
+                                    Seq #{{ $err['seq'] ?? '-' }}
+                                </span>
+                            </div>
+
+                            {{-- Meta --}}
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <div class="text-xs text-slate-500">Log Type</div>
+                                    <div class="font-semibold text-slate-900 break-all">{{ $err['log_type'] ?? '-' }}
+                                    </div>
+                                </div>
+
+                                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <div class="text-xs text-slate-500">Created At</div>
+                                    <div class="font-semibold text-slate-900 break-all">
+                                        {{ $err['created_at'] ?? '-' }}</div>
+                                </div>
+
+                                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <div class="text-xs text-slate-500">Seq</div>
+                                    <div class="font-bold text-slate-900">{{ $err['seq'] ?? '-' }}</div>
+                                </div>
+                            </div>
+
+                            {{-- Hash Compare --}}
+                            @if (isset($err['expected']) || isset($err['found']))
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <div class="text-xs text-slate-500 mb-1">Expected</div>
+                                        <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $err['expected'] ?? '-' }}</pre>
+                                    </div>
+
+                                    <div>
+                                        <div class="text-xs text-slate-500 mb-1">Stored</div>
+                                        <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $err['found'] ?? '-' }}</pre>
+                                    </div>
+                                </div>
+                            @endif
+
+                            {{-- Payload Preview --}}
+                            @if (!empty($err['payload_preview']))
+                                <details class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                                    <summary
+                                        class="cursor-pointer px-4 py-3 flex items-center justify-between text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fa-solid fa-database text-slate-500"></i>
+                                            Payload Preview
+                                        </div>
+                                        <i class="fa-solid fa-chevron-down text-slate-500"></i>
+                                    </summary>
+
+                                    <div class="p-4">
+                                        <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $err['payload_preview'] }}</pre>
+                                    </div>
+                                </details>
+                            @endif
+
+                        </div>
+                    @endforeach
+                </div>
+            </details>
+        @endif
+    </div>
+
     {{-- TABLE --}}
     <div class="rounded-xl border border-slate-200 bg-white overflow-x-auto">
         <div class="min-w-[980px]">
-
             {{-- Header --}}
             <div class="grid grid-cols-12 bg-slate-50 text-slate-600 border-b border-slate-200">
                 <div class="col-span-1 px-6 py-3 text-sm font-semibold">No</div>
@@ -140,13 +300,10 @@
                     @endphp
 
                     <div class="grid grid-cols-12 hover:bg-slate-50 transition">
-
-                        {{-- No --}}
                         <div class="col-span-1 px-6 py-4">
                             <div class="font-bold text-slate-900">{{ $no }}</div>
                         </div>
 
-                        {{-- Application --}}
                         <div class="col-span-2 px-6 py-4 min-w-0">
                             <div class="font-semibold text-slate-900 truncate"
                                 title="{{ $log->application->name ?? '-' }}">
@@ -154,32 +311,26 @@
                             </div>
                         </div>
 
-                        {{-- Type (wrap aman) --}}
                         <div class="col-span-2 px-6 py-4 min-w-0">
                             <span
-                                class="inline-block max-w-full px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs whitespace-normal break-all"
-                                title="{{ $log->log_type ?: '-' }}">
+                                class="inline-block max-w-full px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs whitespace-normal break-all">
                                 {{ $log->log_type ?: '-' }}
                             </span>
                         </div>
 
-                        {{-- Payload (CLICKABLE seperti Super Admin) --}}
                         <div class="col-span-5 px-6 py-4 min-w-0">
                             <button type="button" wire:click="showDetail(@js($log->id))"
-                                class="w-full text-left text-xs font-mono text-slate-600 truncate hover:underline hover:text-slate-900 cursor-pointer"
-                                title="Klik untuk lihat detail">
+                                class="w-full text-left text-xs font-mono text-slate-600 truncate hover:underline hover:text-slate-900 cursor-pointer">
                                 {{ $payloadPreview }}
                             </button>
                         </div>
 
-                        {{-- Aksi --}}
                         <div class="col-span-2 px-6 py-4">
                             <button type="button" wire:click="showDetail(@js($log->id))"
                                 class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800 cursor-pointer">
                                 Detail
                             </button>
                         </div>
-
                     </div>
                 @empty
                     <div class="px-6 py-10 text-center text-slate-500">
@@ -187,7 +338,6 @@
                     </div>
                 @endforelse
             </div>
-
         </div>
 
         {{-- Pagination --}}
@@ -201,7 +351,6 @@
 
             <div class="border-t border-slate-200 p-4 sm:p-6">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
                     <div class="text-xs text-slate-500">
                         Page <span class="font-semibold text-slate-700">{{ $current }}</span>
                         of <span class="font-semibold text-slate-700">{{ $last }}</span>
@@ -209,7 +358,6 @@
                     </div>
 
                     <div class="flex items-center justify-between sm:justify-end gap-2">
-
                         <button type="button" wire:click="prevPage" @disabled($current <= 1)
                             class="h-10 inline-flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                             <i class="fa-solid fa-chevron-left"></i>
@@ -230,9 +378,7 @@
                             @for ($p = $start; $p <= $end; $p++)
                                 @if ($p === $current)
                                     <span
-                                        class="h-10 w-10 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white text-sm">
-                                        {{ $p }}
-                                    </span>
+                                        class="h-10 w-10 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white text-sm">{{ $p }}</span>
                                 @else
                                     <button wire:click="gotoPage({{ $p }}, {{ $last }})"
                                         class="h-10 w-10 inline-flex items-center justify-center rounded-xl border bg-white hover:bg-slate-50 text-sm cursor-pointer">
@@ -259,13 +405,9 @@
                             Next
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>
-
                     </div>
-
                 </div>
             </div>
         @endif
-
     </div>
-
 </div>

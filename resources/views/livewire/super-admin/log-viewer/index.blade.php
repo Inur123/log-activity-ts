@@ -115,162 +115,160 @@
         </div>
     </div>
 
-    {{-- ✅ SECURITY CHECK (VERIFY HASH CHAIN) --}}
-   <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+    {{--  SECURITY CHECK (VERIFY HASH CHAIN) --}}
+    <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
 
-    {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {{-- Header --}}
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
-        {{-- Left --}}
-        <div class="flex items-start sm:items-center gap-3">
-            <div class="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
-                <i class="fa-solid fa-shield-halved"></i>
-            </div>
+            {{-- Left --}}
+            <div class="flex items-start sm:items-center gap-3">
+                <div class="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
 
-            <div class="min-w-0">
-                <div class="font-semibold text-slate-900">Security Check</div>
-                <div class="text-xs text-slate-500">
-                    Verifikasi hash chain untuk Application yang dipilih
+                <div class="min-w-0">
+                    <div class="font-semibold text-slate-900">Security Check</div>
+                    <div class="text-xs text-slate-500">
+                        Verifikasi hash chain untuk Application yang dipilih
+                    </div>
                 </div>
             </div>
+
+            {{-- Right Buttons --}}
+            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+
+                {{-- Verify --}}
+                <button type="button" wire:click="verifySelectedApplicationChain"
+                    class="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-900 text-white text-sm hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    @disabled($application_id === '' || $verifying)>
+                    @if ($verifying)
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span>Verifying...</span>
+                    @else
+                        <i class="fa-solid fa-shield-check"></i>
+                        <span>Verify Now</span>
+                    @endif
+                </button>
+
+                {{-- Clear --}}
+                <button type="button" wire:click="clearChainStatus"
+                    class="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    @disabled(!$chainStatus)>
+                    <i class="fa-solid fa-xmark"></i>
+                    <span>Clear</span>
+                </button>
+
+            </div>
+
         </div>
 
-        {{-- Right Buttons --}}
-        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+        {{-- Info --}}
+        @if ($application_id === '')
+            <div class="mt-3 text-xs text-slate-500 flex items-center gap-2">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>Pilih Application terlebih dahulu untuk melakukan verifikasi hash chain.</span>
+            </div>
+        @endif
 
-            {{-- Verify --}}
-            <button type="button"
-                wire:click="verifySelectedApplicationChain"
-                class="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-900 text-white text-sm hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                @disabled($application_id === '' || $verifying)>
-                @if ($verifying)
-                    <i class="fa-solid fa-spinner fa-spin"></i>
-                    <span>Verifying...</span>
-                @else
-                    <i class="fa-solid fa-shield-check"></i>
-                    <span>Verify Now</span>
-                @endif
-            </button>
+        {{-- Error List --}}
+        @if (!empty($chainStatus['errors']))
+            <details class="mt-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <summary
+                    class="cursor-pointer px-4 sm:px-6 py-4 flex items-center justify-between gap-3 font-semibold text-slate-900 hover:bg-slate-50">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                        <span>Lihat detail error ({{ count($chainStatus['errors']) }})</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-slate-500"></i>
+                </summary>
 
-            {{-- Clear --}}
-            <button type="button"
-                wire:click="clearChainStatus"
-                class="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                @disabled(!$chainStatus)>
-                <i class="fa-solid fa-xmark"></i>
-                <span>Clear</span>
-            </button>
+                <div class="p-4 sm:p-6 space-y-4 bg-slate-50">
+                    @foreach ($chainStatus['errors'] as $err)
+                        <div class="rounded-xl border border-rose-200 bg-white p-4 space-y-3">
 
-        </div>
+                            {{-- Header --}}
+                            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                                <div>
+                                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                                        <i class="fa-solid fa-xmark text-rose-600"></i>
+                                        <span>Hash Mismatch (Seq #{{ $err['seq'] ?? '-' }})</span>
+                                    </div>
+
+                                    <div class="text-xs text-slate-500 break-all">
+                                        Log UUID:
+                                        <span class="font-mono text-slate-700">{{ $err['log_id'] ?? '-' }}</span>
+                                    </div>
+                                </div>
+
+                                <span
+                                    class="self-start px-2 py-1 rounded-lg bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+                                    {{ $err['type'] ?? 'error' }}
+                                </span>
+                            </div>
+
+                            {{-- Meta --}}
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <div class="text-xs text-slate-500">Log Type</div>
+                                    <div class="font-semibold text-slate-900 break-all">
+                                        {{ $err['log_type'] ?? '-' }}
+                                    </div>
+                                </div>
+
+                                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <div class="text-xs text-slate-500">Created At</div>
+                                    <div class="font-semibold text-slate-900 break-all">
+                                        {{ $err['created_at'] ?? '-' }}
+                                    </div>
+                                </div>
+
+                                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <div class="text-xs text-slate-500">Seq</div>
+                                    <div class="font-bold text-slate-900">
+                                        {{ $err['seq'] ?? '-' }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Hash Compare --}}
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <div class="text-xs text-slate-500 mb-1">Expected Hash</div>
+                                    <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $err['expected'] ?? '-' }}</pre>
+                                </div>
+
+                                <div>
+                                    <div class="text-xs text-slate-500 mb-1">Stored Hash</div>
+                                    <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $err['found'] ?? '-' }}</pre>
+                                </div>
+                            </div>
+
+                            {{-- Payload --}}
+                            @if (!empty($err['payload_preview']))
+                                <details class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                                    <summary
+                                        class="cursor-pointer px-4 py-3 flex items-center justify-between text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fa-solid fa-database text-slate-500"></i>
+                                            Payload Preview
+                                        </div>
+                                        <i class="fa-solid fa-chevron-down text-slate-500"></i>
+                                    </summary>
+
+                                    <div class="p-4">
+                                        <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $err['payload_preview'] }}</pre>
+                                    </div>
+                                </details>
+                            @endif
+
+                        </div>
+                    @endforeach
+                </div>
+            </details>
+        @endif
 
     </div>
-
-    {{-- Info --}}
-    @if ($application_id === '')
-        <div class="mt-3 text-xs text-slate-500 flex items-center gap-2">
-            <i class="fa-solid fa-circle-info"></i>
-            <span>Pilih Application terlebih dahulu untuk melakukan verifikasi hash chain.</span>
-        </div>
-    @endif
-
-    {{-- Error List --}}
-    @if (!empty($chainStatus['errors']))
-        <details class="mt-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <summary
-                class="cursor-pointer px-4 sm:px-6 py-4 flex items-center justify-between gap-3 font-semibold text-slate-900 hover:bg-slate-50">
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
-                    <span>Lihat detail error ({{ count($chainStatus['errors']) }})</span>
-                </div>
-                <i class="fa-solid fa-chevron-down text-slate-500"></i>
-            </summary>
-
-            <div class="p-4 sm:p-6 space-y-4 bg-slate-50">
-                @foreach ($chainStatus['errors'] as $err)
-                    <div class="rounded-xl border border-rose-200 bg-white p-4 space-y-3">
-
-                        {{-- Header --}}
-                        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                            <div>
-                                <div class="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                                    <i class="fa-solid fa-xmark text-rose-600"></i>
-                                    <span>Hash Mismatch (Seq #{{ $err['seq'] ?? '-' }})</span>
-                                </div>
-
-                                <div class="text-xs text-slate-500 break-all">
-                                    Log UUID:
-                                    <span class="font-mono text-slate-700">{{ $err['log_id'] ?? '-' }}</span>
-                                </div>
-                            </div>
-
-                            <span
-                                class="self-start px-2 py-1 rounded-lg bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
-                                {{ $err['type'] ?? 'error' }}
-                            </span>
-                        </div>
-
-                        {{-- Meta --}}
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                                <div class="text-xs text-slate-500">Log Type</div>
-                                <div class="font-semibold text-slate-900 break-all">
-                                    {{ $err['log_type'] ?? '-' }}
-                                </div>
-                            </div>
-
-                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                                <div class="text-xs text-slate-500">Created At</div>
-                                <div class="font-semibold text-slate-900 break-all">
-                                    {{ $err['created_at'] ?? '-' }}
-                                </div>
-                            </div>
-
-                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                                <div class="text-xs text-slate-500">Seq</div>
-                                <div class="font-bold text-slate-900">
-                                    {{ $err['seq'] ?? '-' }}
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Hash Compare --}}
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <div class="text-xs text-slate-500 mb-1">Expected Hash</div>
-                                <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $err['expected'] ?? '-' }}</pre>
-                            </div>
-
-                            <div>
-                                <div class="text-xs text-slate-500 mb-1">Stored Hash</div>
-                                <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $err['found'] ?? '-' }}</pre>
-                            </div>
-                        </div>
-
-                        {{-- Payload --}}
-                        @if (!empty($err['payload_preview']))
-                            <details class="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                                <summary
-                                    class="cursor-pointer px-4 py-3 flex items-center justify-between text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                                    <div class="flex items-center gap-2">
-                                        <i class="fa-solid fa-database text-slate-500"></i>
-                                        Payload Preview
-                                    </div>
-                                    <i class="fa-solid fa-chevron-down text-slate-500"></i>
-                                </summary>
-
-                                <div class="p-4">
-                                    <pre class="p-3 rounded-xl bg-slate-900 text-slate-100 text-xs overflow-x-auto break-all whitespace-pre-wrap">{{ $err['payload_preview'] }}</pre>
-                                </div>
-                            </details>
-                        @endif
-
-                    </div>
-                @endforeach
-            </div>
-        </details>
-    @endif
-
-</div>
 
 
 

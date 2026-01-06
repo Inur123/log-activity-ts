@@ -4,6 +4,7 @@ namespace App\Livewire\Auditor;
 
 use App\Models\Application;
 use App\Models\UnifiedLog;
+use App\Services\HashChainService;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -21,7 +22,6 @@ class LogViewer extends Component
     public string $q = '';
 
     /**
-     * IMPORTANT:
      * Gunakan string agar aman untuk ID numeric maupun UUID.
      * Default kosong = All
      */
@@ -35,13 +35,24 @@ class LogViewer extends Component
 
     public int $page = 1;
 
+    //  SECURITY STATUS
+    public ?array $chainStatus = null;
+    public ?array $logSecurityStatus = null;
+    public bool $verifying = false;
+
     /**
-     * Reset page saat filter berubah (biar hasil langsung terasa dan tidak nyangkut page lama)
+     * Reset page saat filter berubah
      */
     public function updated($name, $value): void
     {
         if (in_array($name, [
-            'q', 'application_id', 'log_type', 'from', 'to', 'per_page', 'sort'
+            'q',
+            'application_id',
+            'log_type',
+            'from',
+            'to',
+            'per_page',
+            'sort'
         ], true)) {
             $this->page = 1;
         }
@@ -62,10 +73,66 @@ class LogViewer extends Component
         if ($this->page > 1) $this->page--;
     }
 
+    /**
+     *  Verify Chain per Application
+     */
+    public function verifySelectedApplicationChain(): void
+    {
+        $this->chainStatus = null;
+
+        if ($this->application_id === '') {
+            $this->chainStatus = [
+                'valid' => false,
+                'message' => 'Pilih Application dulu untuk verifikasi chain.',
+                'errors' => [],
+                'total_checked' => 0,
+            ];
+            return;
+        }
+
+        $this->verifying = true;
+
+        try {
+            $service = new HashChainService();
+            $this->chainStatus = $service->verifyChainByApplication($this->application_id);
+        } catch (\Throwable $e) {
+            $this->chainStatus = [
+                'valid' => false,
+                'message' => 'Verify failed: ' . $e->getMessage(),
+                'errors' => [],
+                'total_checked' => 0,
+            ];
+        } finally {
+            $this->verifying = false;
+        }
+    }
+
+    /**
+     *  Clear chain status
+     */
+    public function clearChainStatus(): void
+    {
+        $this->chainStatus = null;
+    }
+
+    /**
+     *  Show Detail + Verify log security
+     */
     public function showDetail(string $id): void
     {
         $this->logId = $id;
         $this->selectedLog = UnifiedLog::with('application')->findOrFail($id);
+
+        try {
+            $service = new HashChainService();
+            $this->logSecurityStatus = $service->verifySingleLog($this->selectedLog);
+        } catch (\Throwable $e) {
+            $this->logSecurityStatus = [
+                'valid' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+
         $this->action = 'detail';
     }
 
@@ -74,6 +141,7 @@ class LogViewer extends Component
         $this->action = 'index';
         $this->logId = null;
         $this->selectedLog = null;
+        $this->logSecurityStatus = null;
     }
 
     private function buildQuery()
@@ -84,7 +152,7 @@ class LogViewer extends Component
             ? $query->oldest('created_at')
             : $query->latest('created_at');
 
-        //  Filter Application: pakai string kosong untuk "All"
+        //  Filter Application
         if ($this->application_id !== '') {
             $query->where('application_id', $this->application_id);
         }
@@ -99,7 +167,9 @@ class LogViewer extends Component
             $query->where(function ($sub) use ($q) {
                 $sub->orWhere('id', $q)
                     ->orWhereRaw("CAST(payload AS CHAR) LIKE ?", ["%$q%"])
-                    ->orWhereHas('application', fn($app) =>
+                    ->orWhereHas(
+                        'application',
+                        fn($app) =>
                         $app->where('name', 'like', "%$q%")
                     );
             });
@@ -175,6 +245,7 @@ class LogViewer extends Component
                     'log' => $this->selectedLog,
                     'payload' => $payloadArr,
                     'summary' => $this->buildSummary($payloadArr),
+                    'logSecurityStatus' => $this->logSecurityStatus,
                 ]);
             })(),
 
@@ -194,6 +265,8 @@ class LogViewer extends Component
                         ->pluck('log_type'),
                     'page' => $this->page,
                     'per_page' => $this->per_page,
+                    'chainStatus' => $this->chainStatus,
+                    'verifying' => $this->verifying,
                 ]);
             })(),
         };
