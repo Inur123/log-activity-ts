@@ -15,27 +15,23 @@ class LogViewer extends Component
 {
     public string $action = 'index';
 
-    // UUID string
     public ?string $logId = null;
     public ?UnifiedLog $selectedLog = null;
 
     public string $q = '';
-
-    /**
-     * FIX: string agar aman untuk UUID / numeric.
-     * '' = All
-     */
     public string $application_id = '';
-
     public string $log_type = '';
+
+    //  New Filters
+    public string $validation_status = ''; // PASSED / FAILED / ''
+    public string $validation_stage  = ''; // BASIC / PAYLOAD / ''
+
     public string $from = '';
     public string $to = '';
     public int $per_page = 25;
     public string $sort = 'newest';
-
     public int $page = 1;
 
-    //  SECURITY STATUS
     public ?array $chainStatus = null;
     public ?array $logSecurityStatus = null;
     public bool $verifying = false;
@@ -45,10 +41,16 @@ class LogViewer extends Component
      */
     public function updated($name, $value): void
     {
+        //  normalize uppercase
+        if ($name === 'validation_status') $this->validation_status = strtoupper((string) $value);
+        if ($name === 'validation_stage')  $this->validation_stage  = strtoupper((string) $value);
+
         if (in_array($name, [
             'q',
             'application_id',
             'log_type',
+            'validation_status',
+            'validation_stage',
             'from',
             'to',
             'per_page',
@@ -74,7 +76,7 @@ class LogViewer extends Component
     }
 
     /**
-     *  Verify Chain per Application
+     * Verify Chain per Application
      */
     public function verifySelectedApplicationChain(): void
     {
@@ -107,8 +109,13 @@ class LogViewer extends Component
         }
     }
 
+    public function clearChainStatus(): void
+    {
+        $this->chainStatus = null;
+    }
+
     /**
-     *  Show Detail + Verify log security
+     * Show Detail + Verify log security
      */
     public function showDetail(string $id): void
     {
@@ -135,10 +142,6 @@ class LogViewer extends Component
         $this->selectedLog = null;
         $this->logSecurityStatus = null;
     }
-    public function clearChainStatus(): void
-    {
-        $this->chainStatus = null;
-    }
 
     private function buildQuery()
     {
@@ -148,14 +151,32 @@ class LogViewer extends Component
             ? $query->oldest('created_at')
             : $query->latest('created_at');
 
-        //  Filter Application
         if ($this->application_id !== '') {
             $query->where('application_id', $this->application_id);
         }
 
-        if ($this->log_type !== '') $query->where('log_type', $this->log_type);
+        if ($this->log_type !== '') {
+            $query->where('log_type', $this->log_type);
+        }
+
         if ($this->from) $query->whereDate('created_at', '>=', $this->from);
-        if ($this->to) $query->whereDate('created_at', '<=', $this->to);
+        if ($this->to)   $query->whereDate('created_at', '<=', $this->to);
+
+        //  Validation Status Filter
+        if ($this->validation_status !== '') {
+            $query->whereRaw(
+                "JSON_UNQUOTE(JSON_EXTRACT(payload, '$.validation.status')) = ?",
+                [$this->validation_status]
+            );
+        }
+
+        //  Validation Stage Filter
+        if ($this->validation_stage !== '') {
+            $query->whereRaw(
+                "JSON_UNQUOTE(JSON_EXTRACT(payload, '$.validation.stage')) = ?",
+                [$this->validation_stage]
+            );
+        }
 
         if ($this->q !== '') {
             $q = trim($this->q);
@@ -163,11 +184,7 @@ class LogViewer extends Component
             $query->where(function ($sub) use ($q) {
                 $sub->orWhere('id', $q)
                     ->orWhereRaw("CAST(payload AS CHAR) LIKE ?", ["%$q%"])
-                    ->orWhereHas(
-                        'application',
-                        fn($app) =>
-                        $app->where('name', 'like', "%$q%")
-                    );
+                    ->orWhereHas('application', fn($app) => $app->where('name', 'like', "%$q%"));
             });
         }
 
@@ -182,7 +199,6 @@ class LogViewer extends Component
         $perPage = $this->per_page;
 
         $lastPage = max(1, (int) ceil($total / $perPage));
-
         if ($this->page > $lastPage) $this->page = $lastPage;
 
         $items = $base->forPage($this->page, $perPage)->get();
@@ -209,28 +225,6 @@ class LogViewer extends Component
         return ['_raw' => (string) $payload];
     }
 
-    private function buildSummary(array $data): array
-    {
-        $pick = function (array $keys) use ($data) {
-            foreach ($keys as $k) {
-                $v = data_get($data, $k);
-                if ($v !== null && $v !== '' && $v !== []) return $v;
-            }
-            return null;
-        };
-
-        $summary = [
-            'Status' => $pick(['status', 'code', 'http.status', 'response.status']),
-            'Method' => $pick(['method', 'http.method', 'request.method']),
-            'URL'    => $pick(['url', 'path', 'endpoint', 'http.url', 'request.url']),
-            'User'   => $pick(['user.email', 'user.name', 'user_id', 'auth.user_id']),
-            'Action' => $pick(['action', 'event', 'type', 'message']),
-            'Error'  => $pick(['error.message', 'error', 'exception.message', 'exception']),
-        ];
-
-        return array_filter($summary, fn($v) => $v !== null);
-    }
-
     public function render()
     {
         return match ($this->action) {
@@ -240,7 +234,6 @@ class LogViewer extends Component
                 return view('livewire.super-admin.log-viewer.detail', [
                     'log' => $this->selectedLog,
                     'payload' => $payloadArr,
-                    'summary' => $this->buildSummary($payloadArr),
                     'logSecurityStatus' => $this->logSecurityStatus,
                 ]);
             })(),

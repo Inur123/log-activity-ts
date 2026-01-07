@@ -22,7 +22,9 @@ class LogController extends Controller
             ], 401);
         }
 
-        // Rate limit per application_id (maks 1000/minute)
+        /**
+         *  Rate limit per application_id (maks 1000/minute)
+         */
         $key = 'api:' . $application->id;
 
         if (RateLimiter::tooManyAttempts($key, 1000)) {
@@ -35,24 +37,67 @@ class LogController extends Controller
 
         RateLimiter::hit($key, 60);
 
-        // normalize log_type to uppercase
-        $logType = strtoupper($request->input('log_type'));
+        /**
+         *  Decode raw body kalau request->all() kosong
+         */
+        $rawBody = [];
+        if ($request->getContent()) {
+            $decoded = json_decode($request->getContent(), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $rawBody = $decoded;
 
-        // validate basic request
-        $validator = Validator::make([
-            'log_type' => $logType,
-            'payload'  => $request->input('payload'),
-        ], [
+                if (empty($request->all())) {
+                    $request->merge($rawBody);
+                }
+            }
+        }
+
+        /**
+         *  Ambil log_type (fallback root -> raw -> payload.log_type)
+         */
+        $rawLogType = $request->input('log_type')
+            ?? ($rawBody['log_type'] ?? null)
+            ?? data_get($request->input('payload', []), 'log_type')
+            ?? ($rawBody['payload']['log_type'] ?? null);
+
+        $logType = strtoupper(trim((string) $rawLogType));
+        if ($logType === '') $logType = 'UNKNOWN';
+
+        $request->merge(['log_type' => $logType]);
+
+        /**
+         *  Decode payload kalau string JSON
+         */
+        $rawPayload = $request->input('payload');
+
+        if (is_string($rawPayload)) {
+            $decoded = json_decode($rawPayload, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $rawPayload = $decoded;
+            } else {
+                $rawPayload = ['_raw' => $rawPayload];
+            }
+
+            $request->merge(['payload' => $rawPayload]);
+        }
+
+        if ($rawPayload === null) {
+            $request->merge(['payload' => []]);
+        }
+
+        /**
+         *  BASIC validation
+         */
+        $validator = Validator::make($request->all(), [
             'log_type' => 'required|string|in:' . implode(',', $this->allowedLogTypes()),
             'payload'  => 'required|array',
         ]);
 
         if ($validator->fails()) {
-
-            // Simpan VALIDATION_FAILED (basic validation)
             $this->dispatchValidationFailed(
                 application: $application,
-                originalLogType: $logType ?: 'UNKNOWN',
+                originalLogType: $logType,
+                stage: 'BASIC',
                 errors: $validator->errors()->toArray(),
                 originalPayload: (array) $request->input('payload', [])
             );
@@ -64,18 +109,19 @@ class LogController extends Controller
             ], 422);
         }
 
-        // validate payload rules by log_type
+        /**
+         *  PAYLOAD validation by log_type
+         */
         $payloadRules = $this->payloadRulesFor($logType);
 
         if (! empty($payloadRules)) {
             $payloadValidator = Validator::make($request->input('payload', []), $payloadRules);
 
             if ($payloadValidator->fails()) {
-
-                // Simpan VALIDATION_FAILED (payload validation)
                 $this->dispatchValidationFailed(
                     application: $application,
                     originalLogType: $logType,
+                    stage: 'PAYLOAD',
                     errors: $payloadValidator->errors()->toArray(),
                     originalPayload: (array) $request->input('payload', [])
                 );
@@ -89,11 +135,20 @@ class LogController extends Controller
         }
 
         try {
-            // valid request -> masuk ke log aslinya
+            /**
+             *  VALID request -> PASSED
+             */
+            $payload = $request->input('payload', []);
+            $payload['validation'] = [
+                'status' => 'PASSED',
+                'stage'  => null,
+                'errors' => null,
+            ];
+
             $logData = [
                 'application_id' => $application->id,
                 'log_type'       => $logType,
-                'payload'        => $request->input('payload', []),
+                'payload'        => $payload,
                 'ip_address'     => $request->ip(),
                 'user_agent'     => $request->userAgent(),
             ];
@@ -105,7 +160,9 @@ class LogController extends Controller
                 'message'   => 'Log received and queued for processing',
                 'queued_at' => now()->toDateTimeString(),
             ], 202);
-        } catch (\Exception $e) {
+
+        } catch (\Throwable $e) {
+
             Log::error('Failed to queue log', [
                 'error' => $e->getMessage(),
             ]);
@@ -117,36 +174,15 @@ class LogController extends Controller
         }
     }
 
-    public function verify(Request $request)
-    {
-        $application = $request->input('application');
-
-        if (! $application) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid application context',
-            ], 401);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'API Key is valid',
-            'application' => [
-                'id'     => $application->id,
-                'name'   => $application->name,
-                'domain' => $application->domain,
-                'stack'  => $application->stack,
-            ],
-        ]);
-    }
-
     /**
-     * Log invalid request/payload sebagai VALIDATION_FAILED
+     *  Log invalid request/payload
      */
-    private function dispatchValidationFailed($application, string $originalLogType, array $errors, array $originalPayload): void
+    private function dispatchValidationFailed($application, string $originalLogType, string $stage, array $errors, array $originalPayload): void
     {
-        // Rate limit per error type supaya tidak spam
-        $rateKey = 'validation_failed:' . $application->id . ':' . md5($originalLogType . json_encode($errors));
+        $logType = strtoupper(trim($originalLogType));
+        if ($logType === '') $logType = 'UNKNOWN';
+
+        $rateKey = 'validation_failed:' . $application->id . ':' . md5($logType . $stage . json_encode($errors));
 
         if (RateLimiter::tooManyAttempts($rateKey, 30)) {
             return;
@@ -154,20 +190,20 @@ class LogController extends Controller
 
         RateLimiter::hit($rateKey, 60);
 
+        $payload = array_merge($originalPayload, [
+            'validation' => [
+                'status' => 'FAILED',
+                'stage'  => $stage,
+                'errors' => $errors,
+            ],
+        ]);
+
         $validationLogData = [
             'application_id' => $application->id,
-            'log_type'       => 'VALIDATION_FAILED',
-            'payload'        => [
-                'user_id' => $originalPayload['user_id'] ?? null,
-                'errors'  => $errors,
-                'ip'      => request()?->ip(),
-                'meta'    => [
-                    'original_log_type' => $originalLogType,
-                    'original_payload'  => $originalPayload,
-                ],
-            ],
-            'ip_address' => request()?->ip(),
-            'user_agent' => request()?->userAgent(),
+            'log_type'       => $logType,
+            'payload'        => $payload,
+            'ip_address'     => request()?->ip(),
+            'user_agent'     => request()?->userAgent(),
         ];
 
         ProcessUnifiedLog::dispatch($validationLogData)->onQueue('logs');
@@ -192,8 +228,6 @@ class LogController extends Controller
             'BULK_EXPORT',
 
             'SYSTEM_ERROR',
-            'VALIDATION_FAILED',
-
             'SECURITY_VIOLATION',
             'PERMISSION_CHANGE',
         ];
@@ -203,7 +237,6 @@ class LogController extends Controller
     {
         return match ($logType) {
 
-            // === AUTH ===
             'AUTH_LOGIN',
             'AUTH_LOGOUT',
             'AUTH_LOGIN_FAILED' => [
@@ -213,7 +246,6 @@ class LogController extends Controller
                 'device'  => 'nullable|string',
             ],
 
-            // === ACCESS ===
             'ACCESS_ENDPOINT' => [
                 'user_id'   => 'required|integer',
                 'endpoint'  => 'required|string',
@@ -237,7 +269,6 @@ class LogController extends Controller
                 'meta'     => 'nullable|array',
             ],
 
-            // === DATA ===
             'DATA_CREATE' => [
                 'user_id' => 'required|integer',
                 'data'    => 'required|array',
@@ -271,7 +302,6 @@ class LogController extends Controller
                 'file_name'   => 'nullable|string',
             ],
 
-            // === SYSTEM ===
             'SYSTEM_ERROR' => [
                 'message'   => 'required|string',
                 'code'      => 'nullable|string',
@@ -279,14 +309,6 @@ class LogController extends Controller
                 'context'   => 'nullable|array',
             ],
 
-            'VALIDATION_FAILED' => [
-                'user_id' => 'nullable|integer',
-                'errors'  => 'required|array',
-                'ip'      => 'nullable|string',
-                'meta'    => 'nullable|array',
-            ],
-
-            // === SECURITY ===
             'SECURITY_VIOLATION' => [
                 'user_id' => 'nullable|integer',
                 'ip'      => 'nullable|string',

@@ -28,6 +28,11 @@ class LogViewer extends Component
     public string $application_id = '';
 
     public string $log_type = '';
+
+    //  New Filters (tambahan seperti super-admin)
+    public string $validation_status = ''; // PASSED / FAILED / ''
+    public string $validation_stage  = ''; // BASIC / PAYLOAD / ''
+
     public string $from = '';
     public string $to = '';
     public int $per_page = 25;
@@ -45,10 +50,16 @@ class LogViewer extends Component
      */
     public function updated($name, $value): void
     {
+        //  normalize uppercase seperti super admin
+        if ($name === 'validation_status') $this->validation_status = strtoupper((string) $value);
+        if ($name === 'validation_stage')  $this->validation_stage  = strtoupper((string) $value);
+
         if (in_array($name, [
             'q',
             'application_id',
             'log_type',
+            'validation_status',
+            'validation_stage',
             'from',
             'to',
             'per_page',
@@ -158,8 +169,25 @@ class LogViewer extends Component
         }
 
         if ($this->log_type !== '') $query->where('log_type', $this->log_type);
+
         if ($this->from) $query->whereDate('created_at', '>=', $this->from);
-        if ($this->to) $query->whereDate('created_at', '<=', $this->to);
+        if ($this->to)   $query->whereDate('created_at', '<=', $this->to);
+
+        //  Validation Status Filter
+        if ($this->validation_status !== '') {
+            $query->whereRaw(
+                "JSON_UNQUOTE(JSON_EXTRACT(payload, '$.validation.status')) = ?",
+                [$this->validation_status]
+            );
+        }
+
+        //  Validation Stage Filter
+        if ($this->validation_stage !== '') {
+            $query->whereRaw(
+                "JSON_UNQUOTE(JSON_EXTRACT(payload, '$.validation.stage')) = ?",
+                [$this->validation_stage]
+            );
+        }
 
         if ($this->q !== '') {
             $q = trim($this->q);
@@ -186,7 +214,6 @@ class LogViewer extends Component
         $perPage = $this->per_page;
 
         $lastPage = max(1, (int) ceil($total / $perPage));
-
         if ($this->page > $lastPage) $this->page = $lastPage;
 
         $items = $base->forPage($this->page, $perPage)->get();
@@ -267,6 +294,10 @@ class LogViewer extends Component
                     'per_page' => $this->per_page,
                     'chainStatus' => $this->chainStatus,
                     'verifying' => $this->verifying,
+
+                    //  New filters untuk view
+                    'validation_status' => $this->validation_status,
+                    'validation_stage'  => $this->validation_stage,
                 ]);
             })(),
         };

@@ -67,6 +67,27 @@
                         @endforeach
                     </select>
                 </div>
+                {{-- Validation Status --}}
+                <div class="lg:col-span-2">
+                    <label class="text-xs font-semibold text-slate-600">Validation</label>
+                    <select wire:model.live="validation_status"
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
+                        <option value="">All</option>
+                        <option value="PASSED">PASSED</option>
+                        <option value="FAILED">FAILED</option>
+                    </select>
+                </div>
+
+                {{-- Validation Stage --}}
+                <div class="lg:col-span-2">
+                    <label class="text-xs font-semibold text-slate-600">Stage</label>
+                    <select wire:model.live="validation_stage"
+                        class="w-full py-2.5 rounded-xl border border-slate-200 bg-white focus:border-gray-500 focus:ring-0 focus:outline-none">
+                        <option value="">All</option>
+                        <option value="BASIC">BASIC</option>
+                        <option value="PAYLOAD">PAYLOAD</option>
+                    </select>
+                </div>
 
                 {{-- Per Page --}}
                 <div class="lg:col-span-2">
@@ -117,7 +138,6 @@
 
     {{--  SECURITY CHECK (VERIFY HASH CHAIN) --}}
     <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
-
         {{-- Header --}}
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
@@ -137,7 +157,6 @@
 
             {{-- Right Buttons --}}
             <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-
                 {{-- Verify --}}
                 <button type="button" wire:click="verifySelectedApplicationChain"
                     class="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-900 text-white text-sm hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -158,9 +177,7 @@
                     <i class="fa-solid fa-xmark"></i>
                     <span>Clear</span>
                 </button>
-
             </div>
-
         </div>
 
         {{-- Info --}}
@@ -186,7 +203,6 @@
                 <div class="p-4 sm:p-6 space-y-4 bg-slate-50">
                     @foreach ($chainStatus['errors'] as $err)
                         <div class="rounded-xl border border-rose-200 bg-white p-4 space-y-3">
-
                             {{-- Header --}}
                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                                 <div>
@@ -267,10 +283,7 @@
                 </div>
             </details>
         @endif
-
     </div>
-
-
 
     {{-- TABLE --}}
     <div class="rounded-xl border border-slate-200 bg-white overflow-x-auto">
@@ -289,14 +302,26 @@
             <div class="divide-y divide-slate-100">
                 @forelse($logs as $log)
                     @php
-                        $payloadPreview = is_string($log->payload)
-                            ? $log->payload
-                            : json_encode($log->payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                        // payload array
+                        $payloadArr = is_array($log->payload) ? $log->payload : json_decode($log->payload, true) ?? [];
+
+                        // validation info
+                        $validation = data_get($payloadArr, 'validation', []);
+                        $vStatus = strtoupper((string) data_get($validation, 'status', 'PASSED'));
+                        $vStage = data_get($validation, 'stage');
+                        $isFailed = $vStatus === 'FAILED';
+
+                        // preview payload tanpa validation biar singkat
+                        $previewArr = $payloadArr;
+                        unset($previewArr['validation']);
+
+                        $payloadPreview = json_encode($previewArr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
                         $no = ($page - 1) * $per_page + $loop->iteration;
                     @endphp
 
-                    <div class="grid grid-cols-12 hover:bg-slate-50 transition">
+                    <div
+                        class="grid grid-cols-12 hover:bg-slate-50 transition {{ $isFailed ? 'bg-rose-50/40' : '' }}">
 
                         <div class="col-span-1 px-6 py-4">
                             <div class="font-bold text-slate-900">{{ $no }}</div>
@@ -309,11 +334,26 @@
                             </div>
                         </div>
 
-                        <div class="col-span-2 px-6 py-4 min-w-0">
+                        {{-- Type + Validation Badge --}}
+                        <div class="col-span-2 px-6 py-4 min-w-0 space-y-2">
+
+                            {{-- Log Type --}}
                             <span
                                 class="inline-block max-w-full px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs whitespace-normal break-all">
                                 {{ $log->log_type ?: '-' }}
                             </span>
+
+                            {{-- Validation Badge --}}
+                            <span
+                                class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold border
+                                {{ $isFailed ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }}">
+                                <i class="fa-solid {{ $isFailed ? 'fa-circle-xmark' : 'fa-circle-check' }}"></i>
+                                {{ $vStatus }}
+                                @if ($vStage)
+                                    <span class="opacity-70">({{ $vStage }})</span>
+                                @endif
+                            </span>
+
                         </div>
 
                         <div class="col-span-5 px-6 py-4 min-w-0">
