@@ -11,7 +11,7 @@
             <p class="text-sm text-slate-600 break-words">
                 {{ $log->application->name ?? '-' }} •
                 <span class="font-semibold">{{ $log->log_type }}</span> •
-                {{ optional($log->created_at)->format('Y-m-d H:i:s') }}
+              {{ optional($log->created_at)->translatedFormat('l, d F Y') }} | {{ optional($log->created_at)->format('H.i') }} WIB
             </p>
         </div>
 
